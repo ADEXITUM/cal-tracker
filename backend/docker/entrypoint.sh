@@ -12,7 +12,10 @@ done
 echo "[entrypoint] Database ready"
 
 php artisan migrate --force
-php artisan config:cache
+if [ "${APP_ENV}" != "local" ]; then
+  php artisan config:cache
+  php artisan route:cache
+fi
 php artisan route:clear
 
 echo "[entrypoint] Starting services..."

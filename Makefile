@@ -1,4 +1,13 @@
-.PHONY: up down restart logs shell-backend shell-db migrate seed test deploy backup
+.PHONY: up down restart logs shell-backend shell-db migrate seed test deploy backup dev dev-down dev-logs
+
+dev:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+dev-down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+dev-logs:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
 
 up:
 	docker compose up -d

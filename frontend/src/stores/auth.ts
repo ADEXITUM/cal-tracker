@@ -1,16 +1,33 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { configureClient } from '@/api/client'
 import { authApi } from '@/api/auth'
 import type { SavedAccount, User } from '@/types/api'
 
-const IDB_ACCOUNTS_KEY = 'saved_accounts'
+const LS_ACCOUNTS_KEY = 'dt_saved_accounts'
+
+function lsGet<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : null
+  } catch {
+    return null
+  }
+}
+
+function lsSet(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // private mode / quota
+  }
+}
 
 export const useAuthStore = defineStore('auth', () => {
   const currentUser = ref<User | null>(null)
   const currentToken = ref<string | null>(null)
   const savedAccounts = ref<SavedAccount[]>([])
+  const isInitialized = ref(false)
 
   const isAuthenticated = computed(() => currentUser.value !== null)
 
@@ -23,19 +40,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function restoreFromIdb(): Promise<void> {
     _wire()
-    const accounts = await idbGet<SavedAccount[]>(IDB_ACCOUNTS_KEY).catch(() => null)
+    const accounts = lsGet<SavedAccount[]>(LS_ACCOUNTS_KEY)
     if (accounts?.length) {
       savedAccounts.value = accounts
-      const last = accounts.sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0]
+      const last = [...accounts].sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0]
       currentToken.value = last.token
       try {
         const res = await authApi.me()
         currentUser.value = res.data.user
-        await _persistAccounts()
       } catch {
         currentToken.value = null
       }
     }
+    isInitialized.value = true
   }
 
   async function login(email: string, password: string, deviceName: string): Promise<void> {
@@ -54,7 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentToken.value = null
     if (user) {
       savedAccounts.value = savedAccounts.value.filter(a => a.uuid !== user.uuid)
-      await _persistAccounts()
+      _persistAccounts()
     }
     try { await authApi.logout() } catch { /* ignore — token already cleared */ }
   }
@@ -67,7 +84,7 @@ export const useAuthStore = defineStore('auth', () => {
       const res = await authApi.me()
       currentUser.value = res.data.user
       account.lastUsedAt = Date.now()
-      await _persistAccounts()
+      _persistAccounts()
     } catch {
       await removeAccount(uuid)
     }
@@ -75,7 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function removeAccount(uuid: string): Promise<void> {
     savedAccounts.value = savedAccounts.value.filter(a => a.uuid !== uuid)
-    await _persistAccounts()
+    _persistAccounts()
     if (currentUser.value?.uuid === uuid) {
       currentUser.value = null
       currentToken.value = null
@@ -96,15 +113,11 @@ export const useAuthStore = defineStore('auth', () => {
     }
     if (existing >= 0) savedAccounts.value[existing] = account
     else savedAccounts.value.push(account)
-    await _persistAccounts()
+    _persistAccounts()
   }
 
-  async function _persistAccounts(): Promise<void> {
-    try {
-      await idbSet(IDB_ACCOUNTS_KEY, savedAccounts.value)
-    } catch {
-      // IDB unavailable (private mode quota, etc.) — state is still in memory
-    }
+  function _persistAccounts(): void {
+    lsSet(LS_ACCOUNTS_KEY, savedAccounts.value)
   }
 
   _wire()
@@ -114,6 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentToken,
     savedAccounts,
     isAuthenticated,
+    isInitialized,
     restoreFromIdb,
     login,
     register,

@@ -14,14 +14,25 @@ const form = ref({ name: '', kcalPer100g: '', proteinPer100g: '', fatPer100g: ''
 
 const filtered = computed(() => store.search(search.value))
 
+const canCreate = computed(() => {
+  const f = form.value
+  return (
+    f.name.trim().length > 0 &&
+    f.kcalPer100g !== '' && !isNaN(parseFloat(f.kcalPer100g)) &&
+    f.proteinPer100g !== '' && !isNaN(parseFloat(f.proteinPer100g)) &&
+    f.fatPer100g !== '' && !isNaN(parseFloat(f.fatPer100g)) &&
+    f.carbsPer100g !== '' && !isNaN(parseFloat(f.carbsPer100g))
+  )
+})
+
 onMounted(() => store.fetchAll(true))
 
 async function createDish() {
-  if (!form.value.name) return
+  if (!canCreate.value) return
   saving.value = true
   try {
     await store.create({
-      name: form.value.name,
+      name: form.value.name.trim(),
       kcalPer100g: parseFloat(form.value.kcalPer100g),
       proteinPer100g: parseFloat(form.value.proteinPer100g),
       fatPer100g: parseFloat(form.value.fatPer100g),
@@ -43,7 +54,7 @@ async function createDish() {
       <AButton size="sm" @click="showCreate = true">+ Новое</AButton>
     </header>
 
-    <div class="p-4 flex flex-col gap-3">
+    <div class="p-4 pb-24 flex flex-col gap-3">
       <input v-model="search" type="text" placeholder="Поиск..."
         class="w-full rounded-[var(--radius-sm)] border px-3 py-2.5 text-base outline-none"
         style="background: var(--color-surface); border-color: var(--color-border); color: var(--color-text)" />
@@ -77,7 +88,7 @@ async function createDish() {
           <AInput v-model="form.fatPer100g" label="Жиры (г)" type="number" placeholder="3.6" />
           <AInput v-model="form.carbsPer100g" label="Углеводы (г)" type="number" placeholder="0" />
         </div>
-        <AButton size="lg" :loading="saving" class="w-full" @click="createDish">Сохранить</AButton>
+        <AButton size="lg" :loading="saving" :disabled="!canCreate" class="w-full" @click="createDish">Сохранить</AButton>
       </div>
     </ASheet>
   </div>

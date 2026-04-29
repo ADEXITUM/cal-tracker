@@ -18,7 +18,22 @@ const errors = ref<Record<string, string>>({})
 
 // Step 1
 const gender = ref<Gender>('male')
-const birthDate = ref('')
+const birthDateDisplay = ref('') // dd/mm/yyyy shown to user
+
+function birthDateToApi(): string {
+  // convert dd/mm/yyyy → yyyy-mm-dd for the API
+  const [d, m, y] = birthDateDisplay.value.split('/')
+  return `${y}-${m}-${d}`
+}
+
+function onBirthDateInput(raw: string) {
+  // Strip non-digits
+  const digits = raw.replace(/\D/g, '').slice(0, 8)
+  let result = digits
+  if (digits.length > 2) result = digits.slice(0, 2) + '/' + digits.slice(2)
+  if (digits.length > 4) result = result.slice(0, 5) + '/' + digits.slice(4)
+  birthDateDisplay.value = result
+}
 
 // Step 2
 const heightCm = ref('')
@@ -48,7 +63,7 @@ async function save() {
   try {
     await profileApi.upsert({
       gender: gender.value,
-      birthDate: birthDate.value,
+      birthDate: birthDateToApi(),
       heightCm: parseInt(heightCm.value),
       activityLevel: activityLevel.value,
     })
@@ -112,10 +127,13 @@ async function save() {
           >{{ opt.label }}</button>
         </div>
         <AInput
-          v-model="birthDate"
+          :model-value="birthDateDisplay"
           label="Дата рождения"
-          type="date"
+          type="text"
+          placeholder="дд/мм/гггг"
+          inputmode="numeric"
           :error="errors.birthDate"
+          @update:model-value="onBirthDateInput"
         />
       </div>
 

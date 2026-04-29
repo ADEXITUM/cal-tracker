@@ -57,6 +57,56 @@ function openAdd(type: 'meal' | 'measurement' | 'workout') {
   else if (type === 'measurement') showAddMeasurement.value = true
   else showAddWorkout.value = true
 }
+
+function formatShortDate(iso: string): string {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+}
+
+function daysBetween(fromIso: string, toIso: string): number {
+  const a = new Date(fromIso + 'T12:00:00').getTime()
+  const b = new Date(toIso + 'T12:00:00').getTime()
+  return Math.round((b - a) / 86400000)
+}
+
+const macroCards = computed(() => {
+  const totals = day.data?.totals
+  const goal = day.data?.goal
+  const make = (label: string, current: number, goalVal?: number) => {
+    const pct = goalVal ? Math.min(150, Math.round((current / goalVal) * 100)) : 0
+    return {
+      key: label,
+      label,
+      current,
+      goal: goalVal,
+      percent: Math.min(100, pct),
+      onTarget: pct >= 90 && pct <= 110,
+    }
+  }
+  return [
+    make('Белки', totals?.proteinG ?? 0, goal?.proteinG),
+    make('Жиры', totals?.fatG ?? 0, goal?.fatG),
+    make('Углеводы', totals?.carbsG ?? 0, goal?.carbsG),
+  ]
+})
+
+const sprintChip = computed(() => {
+  const goal = day.data?.goal
+  const mode = day.data?.mode
+  if (!goal || !mode) return null
+
+  const today = new Date().toISOString().slice(0, 10)
+  const isToday = dateParam.value === today
+  const dayN = daysBetween(goal.startDate, dateParam.value) + 1
+
+  if (goal.endDate) {
+    const totalDays = daysBetween(goal.startDate, goal.endDate) + 1
+    if (isToday) return `${mode.label} · день ${dayN}/${totalDays}`
+    return `${mode.label} · ${formatShortDate(goal.startDate)} → ${formatShortDate(goal.endDate)} · день ${dayN}/${totalDays}`
+  }
+  // Open-ended
+  if (isToday) return `${mode.label} · день ${dayN}`
+  return `${mode.label} · с ${formatShortDate(goal.startDate)} · день ${dayN}`
+})
 </script>
 
 <template>
@@ -96,22 +146,37 @@ function openAdd(type: 'meal' | 'measurement' | 'workout') {
             :label="day.data.mode.label"
             :delta-kcal="day.data.mode.deltaKcal"
           />
+          <p v-if="sprintChip" class="text-xs" style="color: var(--color-text-3)">
+            {{ sprintChip }}
+          </p>
         </div>
       </ACard>
 
       <!-- Macros -->
       <div class="grid grid-cols-3 gap-2">
-        <ACard v-for="macro in [
-          { label: 'Белки', key: 'proteinG', goal: day.data.goal?.proteinG },
-          { label: 'Жиры', key: 'fatG', goal: day.data.goal?.fatG },
-          { label: 'Углеводы', key: 'carbsG', goal: day.data.goal?.carbsG },
-        ]" :key="macro.key">
-          <div class="px-3 py-4 text-center">
+        <ACard v-for="macro in macroCards" :key="macro.key">
+          <div class="px-3 py-3 text-center">
             <p class="text-xs mb-1" style="color: var(--color-text-3)">{{ macro.label }}</p>
-            <p class="font-mono text-xl font-light" style="color: var(--color-text)">
-              {{ (day.data.totals as any)[macro.key] }}
+            <p class="font-mono text-xl font-light leading-tight" style="color: var(--color-text)">
+              {{ macro.current }}
             </p>
-            <p v-if="macro.goal" class="text-xs mt-0.5" style="color: var(--color-text-3)">/ {{ macro.goal }} г</p>
+            <p v-if="macro.goal" class="text-xs mt-0.5" style="color: var(--color-text-3)">
+              / {{ macro.goal }} г
+            </p>
+            <div
+              v-if="macro.goal"
+              class="mt-2 h-1.5 rounded-full overflow-hidden"
+              style="background: var(--color-surface-2)"
+            >
+              <div
+                class="h-full rounded-full"
+                :style="{
+                  width: macro.percent + '%',
+                  background: macro.onTarget ? 'var(--color-accent)' : 'var(--color-text-3)',
+                  transition: 'width 400ms ease-out, background-color 200ms',
+                }"
+              />
+            </div>
           </div>
         </ACard>
       </div>
@@ -119,9 +184,8 @@ function openAdd(type: 'meal' | 'measurement' | 'workout') {
       <!-- Meals -->
       <ACard>
         <div class="p-4">
-          <div class="flex items-center justify-between mb-3">
+          <div class="mb-3">
             <p class="text-sm font-semibold" style="color: var(--color-text)">Приёмы пищи</p>
-            <button class="text-sm" style="color: var(--color-accent)" @click="showAddMeal = true">+ Добавить</button>
           </div>
           <div v-if="day.data.meals.length === 0" class="text-sm py-2" style="color: var(--color-text-3)">
             Нет записей
@@ -143,9 +207,8 @@ function openAdd(type: 'meal' | 'measurement' | 'workout') {
       <!-- Measurements -->
       <ACard>
         <div class="p-4">
-          <div class="flex items-center justify-between mb-3">
+          <div class="mb-3">
             <p class="text-sm font-semibold" style="color: var(--color-text)">Замеры</p>
-            <button class="text-sm" style="color: var(--color-accent)" @click="showAddMeasurement = true">+ Добавить</button>
           </div>
           <div v-if="day.data.measurements.length === 0" class="text-sm py-2" style="color: var(--color-text-3)">Нет замеров</div>
           <div v-else class="flex flex-col gap-2">
@@ -163,9 +226,8 @@ function openAdd(type: 'meal' | 'measurement' | 'workout') {
       <!-- Workouts -->
       <ACard>
         <div class="p-4">
-          <div class="flex items-center justify-between mb-3">
+          <div class="mb-3">
             <p class="text-sm font-semibold" style="color: var(--color-text)">Тренировки</p>
-            <button class="text-sm" style="color: var(--color-accent)" @click="showAddWorkout = true">+ Добавить</button>
           </div>
           <div v-if="day.data.workouts.length === 0" class="text-sm py-2" style="color: var(--color-text-3)">Нет тренировок</div>
           <div v-else class="flex flex-col gap-2">

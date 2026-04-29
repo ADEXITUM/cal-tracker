@@ -24,7 +24,7 @@ class DishController extends Controller
             $query->where('name', 'ilike', '%' . $request->search . '%');
         }
 
-        $dishes = $query->limit((int) ($request->query('limit', 20)))->get();
+        $dishes = $query->limit((int) ($request->query('limit', 500)))->get();
 
         return response()->json(['data' => DishResource::collection($dishes)]);
     }

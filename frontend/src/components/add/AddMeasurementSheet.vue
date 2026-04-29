@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDayStore } from '@/stores/day'
 import ASheet from '@/components/ui/ASheet.vue'
 import AButton from '@/components/ui/AButton.vue'
@@ -12,6 +12,11 @@ const day = useDayStore()
 const weightStr = ref('80')
 const bodyFatStr = ref('')
 const loading = ref(false)
+
+const canSave = computed(() => {
+  const w = parseFloat(weightStr.value)
+  return !isNaN(w) && w >= 30 && w <= 300
+})
 
 watch(() => props.modelValue, (v) => { if (v) { weightStr.value = '80'; bodyFatStr.value = '' } })
 
@@ -39,6 +44,6 @@ async function save() {
         class="w-full rounded-[var(--radius-sm)] border px-3 py-2.5 text-base outline-none"
         style="background: var(--color-surface-2); border-color: var(--color-border); color: var(--color-text)" />
     </div>
-    <AButton size="lg" :loading="loading" class="w-full mt-4" @click="save">Сохранить</AButton>
+    <AButton size="lg" :loading="loading" :disabled="!canSave" class="w-full mt-4" @click="save">Сохранить</AButton>
   </ASheet>
 </template>

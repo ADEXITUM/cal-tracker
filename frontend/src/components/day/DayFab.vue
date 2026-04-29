@@ -12,7 +12,7 @@ function pick(type: 'meal' | 'measurement' | 'workout') {
 </script>
 
 <template>
-  <div class="fixed bottom-6 right-4 z-30 flex flex-col items-end gap-2">
+  <div class="fixed right-4 z-30 flex flex-col items-end gap-2" style="bottom: calc(env(safe-area-inset-bottom) + 4.5rem)">
     <Transition name="fab-menu">
       <div v-if="open" class="flex flex-col items-end gap-2 mb-1">
         <button

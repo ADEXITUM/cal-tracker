@@ -70,13 +70,15 @@
 - Day store (full реализация с optimistic updates + rollback)
 - KcalRing (SVG-кольцо с lerp)
 - AModeBadge с тестами
-- Day-секции: DayKcalCard, DayMacrosCards, MealsList/MealItem, MeasurementsCard, WorkoutsCard, WellbeingCard
+- Day-секции: DayKcalCard, DayMacrosCards (с анимированными progress bars на каждый макрос), MealsList/MealItem, MeasurementsCard, WorkoutsCard, WellbeingCard
 - ASheet базовый компонент (swipe-down to close, spring анимация)
 - AddMealSheet с DishPicker + ANumpad
 - AddMeasurementSheet, AddWorkoutSheet
 - DayFab с radial menu
 - useSwipe composable + slide-анимация между днями
 - DishesView (список + поиск + CRUD)
+- BottomNav компонент (4 таба: День / Статистика / Блюда / Настройки) — Stats и Settings заглушки, активны только Day и Dishes. Hide на /login, /register, /profile/setup. Mobile-first (на desktop тоже снизу — приложение остаётся «телефонным» по 04-frontend.md)
+- Sprint chip под AModeBadge: показывает текущую цель как период. Today: «Сушка · день 3/7» (или «Сушка · день 12» если open-ended). Past: «Сушка · 5 апр → 12 апр · день 3/7». Использует `goal.startDate/endDate` уже приходящие в DayResource
 
 ### Тесты
 - Backend: GetDayTest, CreateMealTest с idempotency, snapshot dish
@@ -103,8 +105,15 @@
 - ApexCharts: WeightChart, BodyFatChart, MacroBars
 - ComparisonCard "было → стало"
 - HistoryView — heatmap календарь с переходом на /day/{date}
-- GoalsView — список + создание с live preview режима
 - TS-зеркала TdeeCalculator/ModeClassifier в `lib/tdee.ts`, `lib/modes.ts`
+
+#### Goals UX
+- GoalPresets компонент — 5 кнопок-карточек на основе TDEE: Быстрая сушка (−500), Медленная сушка (−250), Поддержка (0), Лёгкий набор (+200), Набор (+400). Tooltip с формулой macro-split: protein = 1.8 г × вес, fat = 25% от ккал, carbs = остаток. Каждая карточка показывает рассчитанные ккал + Б/Ж/У. Live preview режима. «Свои числа» раскрывает ручной ввод
+- ProfileSetupView шаг 3 переписать на GoalPresets вместо 4 input-полей. По умолчанию выделена «Поддержка»
+- GoalsView — список целей (chip с режимом, даты, ккал) + кнопка «+ Новая цель»
+- GoalEditSheet — те же GoalPresets + date pickers (start обязательно, end опционально через чекбокс «без срока»). Редактирование существующей цели через тот же sheet. Helper-кнопка «Закончить» в открытой цели — выставляет endDate = вчера
+- Constraint: на одну дату может быть только одна цель. При создании пересекающейся — backend автозакрывает старую (уже работает через GoalResolver)
+- Default goal UX: если у юзера нет ни одной цели — UI показывает виртуальную «Поддержка» (рассчитанную по TDEE), но в БД её нет. При первом действии (создание цели через GoalsView) — записывается. Mode badge на DayView в этом случае всегда `maintenance`
 
 ### Тесты
 - Backend: unit на каждый Insight (ветки tone)
@@ -123,7 +132,7 @@
 - Service Worker config через vite-plugin-pwa (strategies из 07-pwa-offline.md)
 - IDB кэш последних 7 дней (read-through pattern)
 - Offline queue с retry + idempotency + UI индикатор
-- Multi-account через savedAccounts в auth store + IDB. Account switcher в SettingsView
+- Multi-account через savedAccounts в auth store + IDB. Account switcher в SettingsView (раздел «Аккаунты»: список аватарок с email, тап = switchTo, swipe = removeAccount, кнопка «+ Добавить аккаунт» = logout + redirect /login без удаления текущей сессии)
 - Splash screens iOS (опц.)
 - Lighthouse PWA score >= 90
 
@@ -138,6 +147,7 @@
 
 Цель: тёмная тема. Анимации плавные. Мелкие баги.
 
+- SettingsView — полный экран с разделами: Профиль / Цели (→ GoalsView) / Блюда (→ DishesView) / Тема / Аккаунты / Выйти. Ссылка через BottomNav (таб «Настройки», уже добавлен в Phase 2)
 - Dark theme variables + auto через `prefers-color-scheme` + override через Settings
 - useTheme composable, theme picker в Settings (Auto/Light/Dark)
 - Number lerp везде где числа
@@ -149,7 +159,7 @@
 - Haptics на iOS PWA через navigator.vibrate
 - Все error states + empty states + skeleton states
 - Toast система (success/error/info, auto-hide 3s)
-- Profile editing в Settings с live update TDEE
+- Profile editing в Settings с live update TDEE (вес/рост/активность/пол/ДР). При смене веса — пересчёт TDEE и режима всех будущих и текущих дней (мode badge меняется автоматически, цели не трогаем)
 
 **Готовность:** ночью → тёмная. Любое действие даёт feedback. Ничего не прыгает.
 

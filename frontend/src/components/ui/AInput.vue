@@ -6,6 +6,7 @@ defineProps<{
   type?: string
   placeholder?: string
   autocomplete?: string
+  inputmode?: string
   disabled?: boolean
 }>()
 
@@ -22,6 +23,7 @@ defineEmits<{
       :type="type ?? 'text'"
       :placeholder="placeholder"
       :autocomplete="autocomplete"
+      :inputmode="inputmode"
       :disabled="disabled"
       :class="[
         'w-full rounded-[var(--radius-sm)] border px-3 py-2.5 text-base bg-[var(--color-surface)] text-[var(--color-text)] placeholder:text-[var(--color-text-3)] transition-colors outline-none',

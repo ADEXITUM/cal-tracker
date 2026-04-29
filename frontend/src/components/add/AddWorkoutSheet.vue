@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDayStore } from '@/stores/day'
 import ASheet from '@/components/ui/ASheet.vue'
 import AButton from '@/components/ui/AButton.vue'
@@ -13,6 +13,8 @@ const name = ref('')
 const duration = ref('')
 const kcalBurned = ref('')
 const loading = ref(false)
+
+const canSave = computed(() => name.value.trim().length > 0)
 
 watch(() => props.modelValue, (v) => { if (v) { name.value = ''; duration.value = ''; kcalBurned.value = '' } })
 
@@ -40,7 +42,7 @@ async function save() {
         <AInput v-model="duration" label="Длительность (мин)" type="number" placeholder="45" />
         <AInput v-model="kcalBurned" label="Сожжено ккал" type="number" placeholder="300" />
       </div>
-      <AButton size="lg" :loading="loading" class="w-full" @click="save">Сохранить</AButton>
+      <AButton size="lg" :loading="loading" :disabled="!canSave" class="w-full" @click="save">Сохранить</AButton>
     </div>
   </ASheet>
 </template>

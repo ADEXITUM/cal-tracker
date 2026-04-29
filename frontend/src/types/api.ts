@@ -85,10 +85,14 @@ export interface Totals {
 }
 
 export interface DayGoal {
+  uuid: string
+  startDate: string
+  endDate: string | null
   kcal: number
   proteinG: number
   fatG: number
   carbsG: number
+  note: string | null
 }
 
 export interface DayMode {

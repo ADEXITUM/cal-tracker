@@ -15,8 +15,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     Route::prefix('auth')->group(function () {
-        Route::post('register', [AuthController::class, 'register'])->middleware('throttle:5,60');
-        Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+        $authThrottle = app()->isLocal() ? 'throttle:1000,1' : 'throttle:5,60';
+        $loginThrottle = app()->isLocal() ? 'throttle:1000,1' : 'throttle:10,1';
+        Route::post('register', [AuthController::class, 'register'])->middleware($authThrottle);
+        Route::post('login', [AuthController::class, 'login'])->middleware($loginThrottle);
 
         Route::middleware('auth:sanctum')->group(function () {
             Route::post('logout', [AuthController::class, 'logout']);
@@ -24,7 +26,8 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
+    $apiThrottle = app()->isLocal() ? 'throttle:10000,1' : 'throttle:120,1';
+    Route::middleware(['auth:sanctum', $apiThrottle])->group(function () {
         Route::get('profile', [ProfileController::class, 'show']);
         Route::put('profile', [ProfileController::class, 'upsert']);
 

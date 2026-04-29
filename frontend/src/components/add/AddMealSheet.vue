@@ -32,8 +32,15 @@ const slots: { value: MealSlot; label: string }[] = [
 
 const filteredDishes = computed(() => dishStore.search(searchQuery.value))
 
+const canSaveGrams = computed(() => {
+  const g = parseFloat(gramsStr.value)
+  return selectedDish.value !== null && !isNaN(g) && g > 0
+})
+
+const canSaveAdhoc = computed(() => adhoc.value.name.trim().length > 0)
+
 function open() {
-  dishStore.fetchAll()
+  dishStore.fetchAll(true)
   mode.value = 'pick'
   selectedDish.value = null
   gramsStr.value = '100'
@@ -134,7 +141,7 @@ watch(() => props.modelValue, (v) => { if (v) open() })
       </div>
       <div class="flex gap-2 mt-4">
         <AButton variant="secondary" size="md" class="flex-1" @click="mode = 'pick'">Назад</AButton>
-        <AButton size="md" :loading="loading" class="flex-1" @click="save">Добавить</AButton>
+        <AButton size="md" :loading="loading" :disabled="!canSaveGrams" class="flex-1" @click="save">Добавить</AButton>
       </div>
     </div>
 
@@ -158,7 +165,7 @@ watch(() => props.modelValue, (v) => { if (v) open() })
       </div>
       <div class="flex gap-2">
         <AButton variant="secondary" size="md" class="flex-1" @click="mode = 'pick'">Назад</AButton>
-        <AButton size="md" :loading="loading" class="flex-1" @click="save">Добавить</AButton>
+        <AButton size="md" :loading="loading" :disabled="!canSaveAdhoc" class="flex-1" @click="save">Добавить</AButton>
       </div>
     </div>
 
