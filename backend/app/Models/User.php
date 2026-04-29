@@ -55,4 +55,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Goal::class);
     }
+
+    public function dayEntries(): HasMany
+    {
+        return $this->hasMany(DayEntry::class);
+    }
+
+    public function dishes(): HasMany
+    {
+        return $this->hasMany(Dish::class);
+    }
 }

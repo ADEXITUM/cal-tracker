@@ -29,6 +29,12 @@ const router = createRouter({
       meta: { auth: true },
     },
     {
+      path: '/dishes',
+      name: 'dishes',
+      component: () => import('@/views/DishesView.vue'),
+      meta: { auth: true },
+    },
+    {
       path: '/',
       redirect: '/day',
     },
