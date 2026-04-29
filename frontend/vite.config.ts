@@ -14,13 +14,58 @@ export default defineConfig(() => ({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
-        // Don't precache index.html — always fetch it fresh so SW updates are detected
-        navigateFallback: null,
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
+          // Fonts (Google etc.) — cache forever
           {
             urlPattern: /^https:\/\/fonts\./,
             handler: 'CacheFirst',
-            options: { cacheName: 'fonts', expiration: { maxEntries: 10, maxAgeSeconds: 31536000 } },
+            options: {
+              cacheName: 'fonts',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+
+          // GET /api/v1/days/{date} — main day view
+          {
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' &&
+              url.pathname.startsWith('/api/v1/days/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-days',
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+
+          // GET /api/v1/stats/*
+          {
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' &&
+              url.pathname.startsWith('/api/v1/stats/'),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-stats',
+              networkTimeoutSeconds: 3,
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+
+          // GET /api/v1/dishes, /goals, /profile, /auth/me — slow-changing
+          {
+            urlPattern: ({ url, request }) =>
+              request.method === 'GET' &&
+              /^\/api\/v1\/(dishes|goals|profile|auth\/me)/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'api-static',
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
           },
         ],
       },

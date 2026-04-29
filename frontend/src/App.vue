@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BottomNav from '@/components/layout/BottomNav.vue'
+import SyncIndicator from '@/components/layout/SyncIndicator.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -12,5 +13,6 @@ const showNav = computed(() => auth.isAuthenticated && route.meta.hideNav !== tr
 
 <template>
   <RouterView />
+  <SyncIndicator v-if="auth.isAuthenticated" />
   <BottomNav v-if="showNav" />
 </template>

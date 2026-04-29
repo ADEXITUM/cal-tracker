@@ -4,6 +4,13 @@ export class ValidationError extends Error {
   }
 }
 
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'NetworkError'
+  }
+}
+
 function toCamel(s: string): string {
   return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
 }
@@ -54,11 +61,16 @@ async function request<T>(
   if (token) headers['Authorization'] = `Bearer ${token}`
   if (opts?.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey
 
-  const res = await fetch(`/api/v1${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(snakeifyRequest(body)) : undefined,
-  })
+  let res: Response
+  try {
+    res = await fetch(`/api/v1${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(snakeifyRequest(body)) : undefined,
+    })
+  } catch (e) {
+    throw new NetworkError((e as Error).message ?? 'Network unavailable')
+  }
 
   if (res.status === 401) {
     // Only fire onUnauthorized when we actually had a token (avoid recursion during logout)
@@ -75,6 +87,9 @@ async function request<T>(
   }
 
   if (!res.ok) {
+    if (res.status >= 500) {
+      throw new NetworkError(json.message ?? `HTTP ${res.status}`)
+    }
     throw new Error(json.message ?? `HTTP ${res.status}`)
   }
 

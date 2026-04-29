@@ -90,6 +90,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  /**
+   * Unload the active session without removing it from saved accounts.
+   * Use when adding another account: the user goes to /login but their
+   * existing saved accounts (including this one) stay in IDB.
+   */
+  function unloadCurrentSession(): void {
+    currentUser.value = null
+    currentToken.value = null
+  }
+
   async function removeAccount(uuid: string): Promise<void> {
     savedAccounts.value = savedAccounts.value.filter(a => a.uuid !== uuid)
     _persistAccounts()
@@ -134,5 +144,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     switchTo,
     removeAccount,
+    unloadCurrentSession,
   }
 })
