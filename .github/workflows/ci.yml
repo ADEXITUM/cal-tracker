@@ -17,7 +17,7 @@ jobs:
         env:
           POSTGRES_DB: dt_test
           POSTGRES_USER: dt
-          POSTGRES_PASSWORD: password
+          POSTGRES_PASSWORD: strongpassword123
         ports:
           - 5432:5432
         options: >-
@@ -33,31 +33,18 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_pgsql, mbstring, xml, bcmath
+          extensions: pdo_pgsql, mbstring, xml, bcmath, intl
           coverage: none
 
       - name: Install dependencies
         working-directory: backend
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: Prepare .env
+      - name: Generate app key
         working-directory: backend
         run: |
           cp .env.example .env
           php artisan key:generate
-          sed -i 's|DB_CONNECTION=pgsql|DB_CONNECTION=pgsql|' .env
-          sed -i 's|DB_HOST=.*|DB_HOST=127.0.0.1|' .env
-          sed -i 's|DB_PORT=.*|DB_PORT=5432|' .env
-          sed -i 's|DB_DATABASE=.*|DB_DATABASE=dt_test|' .env
-          sed -i 's|DB_USERNAME=.*|DB_USERNAME=dt|' .env
-          sed -i 's|DB_PASSWORD=.*|DB_PASSWORD=password|' .env
-          sed -i 's|SESSION_DRIVER=.*|SESSION_DRIVER=file|' .env
-          sed -i 's|CACHE_STORE=.*|CACHE_STORE=file|' .env
-          sed -i 's|QUEUE_CONNECTION=.*|QUEUE_CONNECTION=sync|' .env
-
-      - name: Run migrations
-        working-directory: backend
-        run: php artisan migrate --force
 
       - name: Run tests
         working-directory: backend

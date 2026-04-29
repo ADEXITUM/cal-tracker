@@ -13,7 +13,7 @@ echo "[entrypoint] Database ready"
 
 php artisan migrate --force
 php artisan config:cache
-php artisan route:cache
+php artisan route:clear
 
 echo "[entrypoint] Starting services..."
 exec docker-php-serversideup-entrypoint /init

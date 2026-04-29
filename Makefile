@@ -25,8 +25,8 @@ seed:
 	docker compose exec -T backend php artisan db:seed
 
 test:
-	docker compose exec -T backend php artisan test
-	docker compose exec -T frontend npm run test
+	cd backend && php artisan test
+	cd frontend && npm run test
 
 deploy:
 	bash deploy.sh

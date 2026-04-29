@@ -4,12 +4,26 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
-export default defineConfig({
+export default defineConfig(() => ({
   plugins: [
     vue(),
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      devOptions: { enabled: false },
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        // Don't precache index.html — always fetch it fresh so SW updates are detected
+        navigateFallback: null,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\./,
+            handler: 'CacheFirst',
+            options: { cacheName: 'fonts', expiration: { maxEntries: 10, maxAgeSeconds: 31536000 } },
+          },
+        ],
+      },
       manifest: {
         name: 'DietTracker',
         short_name: 'DietTracker',
@@ -31,4 +45,4 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-})
+}))
