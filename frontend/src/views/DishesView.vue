@@ -5,6 +5,7 @@ import ACard from '@/components/ui/ACard.vue'
 import AButton from '@/components/ui/AButton.vue'
 import ASheet from '@/components/ui/ASheet.vue'
 import AInput from '@/components/ui/AInput.vue'
+import AHeader from '@/components/ui/AHeader.vue'
 
 const store = useDishesStore()
 const search = ref('')
@@ -48,11 +49,11 @@ async function createDish() {
 
 <template>
   <div class="flex flex-col min-h-svh" style="background: var(--color-bg)">
-    <header class="sticky top-0 z-10 flex items-center justify-between px-4 py-3"
-      style="background: var(--color-bg); border-bottom: 1px solid var(--color-border)">
-      <h1 class="text-base font-semibold" style="color: var(--color-text)">Мои блюда</h1>
-      <AButton size="sm" @click="showCreate = true">+ Новое</AButton>
-    </header>
+    <AHeader title="Мои блюда" back back-to="/settings">
+      <template #right>
+        <AButton size="sm" @click="showCreate = true">+ Новое</AButton>
+      </template>
+    </AHeader>
 
     <div class="p-4 pb-24 flex flex-col gap-3">
       <input v-model="search" type="text" placeholder="Поиск..."

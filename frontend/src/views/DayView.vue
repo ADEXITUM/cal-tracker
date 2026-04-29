@@ -2,7 +2,6 @@
 import { onMounted, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDayStore } from '@/stores/day'
-import { useAuthStore } from '@/stores/auth'
 import { useSwipe } from '@/composables/useSwipe'
 import KcalRing from '@/components/charts/KcalRing.vue'
 import AModeBadge from '@/components/ui/AModeBadge.vue'
@@ -12,15 +11,17 @@ import DayFab from '@/components/day/DayFab.vue'
 import AddMealSheet from '@/components/add/AddMealSheet.vue'
 import AddMeasurementSheet from '@/components/add/AddMeasurementSheet.vue'
 import AddWorkoutSheet from '@/components/add/AddWorkoutSheet.vue'
+import ModeExplainerModal from '@/components/day/ModeExplainerModal.vue'
+import DayInsights from '@/components/day/DayInsights.vue'
 
 const route = useRoute()
 const router = useRouter()
 const day = useDayStore()
-const auth = useAuthStore()
 
 const showAddMeal = ref(false)
 const showAddMeasurement = ref(false)
 const showAddWorkout = ref(false)
+const showModeExplainer = ref(false)
 
 const dateParam = computed(() => (route.params.date as string) || new Date().toISOString().slice(0, 10))
 
@@ -46,11 +47,6 @@ useSwipe({
     router.replace({ name: 'day', params: { date: day.currentDate } })
   },
 })
-
-async function logout() {
-  await auth.logout()
-  router.push({ name: 'login' })
-}
 
 function openAdd(type: 'meal' | 'measurement' | 'workout') {
   if (type === 'meal') showAddMeal.value = true
@@ -145,6 +141,8 @@ const sprintChip = computed(() => {
             :code="day.data.mode.code"
             :label="day.data.mode.label"
             :delta-kcal="day.data.mode.deltaKcal"
+            clickable
+            @click="showModeExplainer = true"
           />
           <p v-if="sprintChip" class="text-xs" style="color: var(--color-text-3)">
             {{ sprintChip }}
@@ -180,6 +178,13 @@ const sprintChip = computed(() => {
           </div>
         </ACard>
       </div>
+
+      <!-- Insights -->
+      <DayInsights
+        v-if="day.data.insights.length"
+        :insights="day.data.insights"
+        :date="dateParam"
+      />
 
       <!-- Meals -->
       <ACard>
@@ -244,10 +249,6 @@ const sprintChip = computed(() => {
         </div>
       </ACard>
 
-      <!-- Logout -->
-      <div class="pt-2 flex justify-center">
-        <AButton variant="ghost" size="sm" @click="logout">Выйти</AButton>
-      </div>
     </div>
 
     <!-- Error -->
@@ -263,5 +264,11 @@ const sprintChip = computed(() => {
     <AddMealSheet v-model="showAddMeal" />
     <AddMeasurementSheet v-model="showAddMeasurement" />
     <AddWorkoutSheet v-model="showAddWorkout" />
+    <ModeExplainerModal
+      v-model="showModeExplainer"
+      :mode="day.data?.mode ?? null"
+      :tdee="day.data?.tdee ?? null"
+      :goal="day.data?.goal ?? null"
+    />
   </div>
 </template>

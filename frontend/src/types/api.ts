@@ -125,7 +125,16 @@ export interface DayResource {
   meals: Meal[]
   measurements: Measurement[]
   workouts: Workout[]
-  insights: unknown[]
+  insights: Insight[]
+}
+
+export type InsightTone = 'neutral' | 'good' | 'warm' | 'warn' | 'alert'
+
+export interface Insight {
+  code: string
+  tone: InsightTone
+  title: string
+  body: string
 }
 
 export interface SavedAccount {

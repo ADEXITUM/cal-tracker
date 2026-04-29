@@ -7,6 +7,8 @@ namespace App\Services\Days;
 use App\Models\DayEntry;
 use App\Models\User;
 use App\Services\Goals\GoalResolver;
+use App\Services\Insights\InsightContext;
+use App\Services\Insights\InsightEngine;
 use App\Services\Modes\ModeClassifier;
 use App\Services\Tdee\TdeeCalculator;
 use Carbon\Carbon;
@@ -52,6 +54,25 @@ class DayAggregator
             'carbs_g'   => round((float) $meals->sum('carbs_g'), 1),
         ];
 
+        $now = Carbon::now($user->timezone ?? 'UTC');
+        $hoursIntoDay = $date->isSameDay($now) ? (int) $now->hour : 23;
+
+        $ctx = new InsightContext(
+            user: $user,
+            date: $date,
+            dayEntry: $entry,
+            goal: $goal,
+            tdee: $tdeeBreakdown,
+            mode: $mode,
+            totals: $totals,
+            meals: $meals,
+            measurements: $measurements,
+            workouts: $workouts,
+            hoursIntoDay: $hoursIntoDay,
+        );
+
+        $insights = array_map(fn ($i) => $i->toArray(), InsightEngine::evaluate($ctx));
+
         return [
             'date'         => $date->toDateString(),
             'day_entry'    => $entry,
@@ -70,7 +91,7 @@ class DayAggregator
             'meals'        => $meals,
             'measurements' => $measurements,
             'workouts'     => $workouts,
-            'insights'     => [],
+            'insights'     => $insights,
         ];
     }
 }

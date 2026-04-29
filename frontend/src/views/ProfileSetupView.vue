@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { profileApi } from '@/api/profile'
 import { goalsApi } from '@/api/goals'
+import { daysApi } from '@/api/days'
 import { ValidationError } from '@/api/client'
 import AButton from '@/components/ui/AButton.vue'
 import AInput from '@/components/ui/AInput.vue'
+import GoalPresets from '@/components/goals/GoalPresets.vue'
+import { computeTdee } from '@/lib/tdee'
+import { defaultMacroSplit } from '@/lib/modes'
 import type { ActivityLevel, Gender } from '@/types/api'
 
 const router = useRouter()
@@ -18,16 +22,14 @@ const errors = ref<Record<string, string>>({})
 
 // Step 1
 const gender = ref<Gender>('male')
-const birthDateDisplay = ref('') // dd/mm/yyyy shown to user
+const birthDateDisplay = ref('')
 
 function birthDateToApi(): string {
-  // convert dd/mm/yyyy → yyyy-mm-dd for the API
   const [d, m, y] = birthDateDisplay.value.split('/')
   return `${y}-${m}-${d}`
 }
 
 function onBirthDateInput(raw: string) {
-  // Strip non-digits
   const digits = raw.replace(/\D/g, '').slice(0, 8)
   let result = digits
   if (digits.length > 2) result = digits.slice(0, 2) + '/' + digits.slice(2)
@@ -37,13 +39,8 @@ function onBirthDateInput(raw: string) {
 
 // Step 2
 const heightCm = ref('')
+const weightKg = ref('')
 const activityLevel = ref<ActivityLevel>('sedentary')
-
-// Step 3
-const kcal = ref('1700')
-const proteinG = ref('150')
-const fatG = ref('60')
-const carbsG = ref('140')
 
 const activityOptions: { value: ActivityLevel; label: string; hint: string }[] = [
   { value: 'sedentary', label: 'Сидячий', hint: 'Офис, мало движения' },
@@ -52,9 +49,35 @@ const activityOptions: { value: ActivityLevel; label: string; hint: string }[] =
   { value: 'active', label: 'Активный', hint: '6-7 тренировок или физический труд' },
 ]
 
+// Step 3 — computed TDEE + initial macros
+const tdeeKcal = computed(() => {
+  if (!birthDateDisplay.value || !heightCm.value || !weightKg.value) return 0
+  try {
+    const td = computeTdee({
+      gender: gender.value,
+      birthDate: birthDateToApi(),
+      heightCm: parseInt(heightCm.value),
+      activityLevel: activityLevel.value,
+      weightKg: parseFloat(weightKg.value),
+    })
+    return td.total
+  } catch { return 0 }
+})
+
+const goalDraft = ref({ kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 })
+
+function initGoalToMaintenance() {
+  goalDraft.value = defaultMacroSplit(tdeeKcal.value, parseFloat(weightKg.value))
+}
+
 async function nextStep() {
   errors.value = {}
-  if (step.value < 3) { step.value++; return }
+  if (step.value === 1) { step.value = 2; return }
+  if (step.value === 2) {
+    initGoalToMaintenance()
+    step.value = 3
+    return
+  }
   await save()
 }
 
@@ -69,24 +92,31 @@ async function save() {
     })
 
     const today = new Date().toISOString().slice(0, 10)
+
+    // Save current weight as a measurement so TDEE works on day view
+    await daysApi.addMeasurement(today, {
+      measuredAt: new Date().toISOString(),
+      weightKg: parseFloat(weightKg.value),
+      bodyFatPct: null,
+    })
+
     await goalsApi.create({
       startDate: today,
       endDate: null,
-      kcal: parseInt(kcal.value),
-      proteinG: parseInt(proteinG.value),
-      fatG: parseInt(fatG.value),
-      carbsG: parseInt(carbsG.value),
+      kcal: goalDraft.value.kcal,
+      proteinG: goalDraft.value.proteinG,
+      fatG: goalDraft.value.fatG,
+      carbsG: goalDraft.value.carbsG,
       note: null,
     })
 
-    // Mark profile as complete in store so the router guard lets us through
     if (auth.currentUser) auth.currentUser.hasProfile = true
     await router.push({ name: 'day' })
   } catch (e) {
     if (e instanceof ValidationError) {
       Object.entries(e.errors).forEach(([k, v]) => { errors.value[k] = v[0] })
       if (errors.value.gender || errors.value.birthDate) step.value = 1
-      else if (errors.value.heightCm || errors.value.activityLevel) step.value = 2
+      else if (errors.value.heightCm || errors.value.activityLevel || errors.value.weightKg) step.value = 2
     }
   } finally {
     loading.value = false
@@ -107,7 +137,7 @@ async function save() {
       </div>
 
       <h2 class="mb-6 text-xl font-semibold" style="color: var(--color-text)">
-        {{ step === 1 ? 'Пол и дата рождения' : step === 2 ? 'Рост и активность' : 'Первая цель' }}
+        {{ step === 1 ? 'Пол и дата рождения' : step === 2 ? 'Рост, вес, активность' : 'Первая цель' }}
       </h2>
 
       <!-- Step 1 -->
@@ -139,13 +169,22 @@ async function save() {
 
       <!-- Step 2 -->
       <div v-else-if="step === 2" class="flex flex-col gap-4">
-        <AInput
-          v-model="heightCm"
-          label="Рост (см)"
-          type="number"
-          placeholder="180"
-          :error="errors.heightCm"
-        />
+        <div class="grid grid-cols-2 gap-3">
+          <AInput
+            v-model="heightCm"
+            label="Рост (см)"
+            type="number"
+            placeholder="180"
+            :error="errors.heightCm"
+          />
+          <AInput
+            v-model="weightKg"
+            label="Вес (кг)"
+            type="number"
+            placeholder="75"
+            :error="errors.weightKg"
+          />
+        </div>
         <div>
           <p class="mb-1 text-sm font-medium" style="color: var(--color-text)">Уровень активности</p>
           <div class="flex flex-col gap-2">
@@ -170,14 +209,14 @@ async function save() {
       <!-- Step 3 -->
       <div v-else class="flex flex-col gap-4">
         <p class="text-sm" style="color: var(--color-text-2)">
-          Задайте начальную цель. Можно изменить в любое время.
+          По вашим данным TDEE = <strong>{{ tdeeKcal }}</strong> ккал. Выберите цель.
         </p>
-        <AInput v-model="kcal" label="Калории (ккал)" type="number" placeholder="1700" :error="errors.kcal" />
-        <div class="grid grid-cols-3 gap-2">
-          <AInput v-model="proteinG" label="Белки (г)" type="number" placeholder="150" :error="errors.proteinG" />
-          <AInput v-model="fatG" label="Жиры (г)" type="number" placeholder="60" :error="errors.fatG" />
-          <AInput v-model="carbsG" label="Углеводы (г)" type="number" placeholder="140" :error="errors.carbsG" />
-        </div>
+        <GoalPresets
+          v-model="goalDraft"
+          :tdee-kcal="tdeeKcal"
+          :weight-kg="parseFloat(weightKg) || 0"
+          initial-preset="maintenance"
+        />
       </div>
 
       <div class="mt-8 flex gap-3">

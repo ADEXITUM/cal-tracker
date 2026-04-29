@@ -131,7 +131,7 @@ class DayController extends Controller
                 'duration_min' => $w->duration_min,
                 'kcal_burned'  => $w->kcal_burned,
             ]),
-            'insights' => [],
+            'insights' => $data['insights'] ?? [],
         ];
     }
 }

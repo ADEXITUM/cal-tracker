@@ -36,6 +36,24 @@ const router = createRouter({
       meta: { auth: true },
     },
     {
+      path: '/stats',
+      name: 'stats',
+      component: () => import('@/views/StatsView.vue'),
+      meta: { auth: true },
+    },
+    {
+      path: '/goals',
+      name: 'goals',
+      component: () => import('@/views/GoalsView.vue'),
+      meta: { auth: true },
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('@/views/SettingsView.vue'),
+      meta: { auth: true },
+    },
+    {
       path: '/',
       redirect: '/day',
     },

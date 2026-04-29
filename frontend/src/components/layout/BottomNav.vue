@@ -5,23 +5,31 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 
-const tabs = [
+interface Tab {
+  name: string
+  label: string
+  route: string
+  icon: string
+  disabled?: boolean
+}
+
+const tabs: Tab[] = [
   { name: 'day', label: 'День', route: '/day', icon: '◐' },
-  { name: 'stats', label: 'Статистика', route: '/stats', icon: '▦', disabled: true },
-  { name: 'dishes', label: 'Блюда', route: '/dishes', icon: '◇' },
-  { name: 'settings', label: 'Настройки', route: '/settings', icon: '⚙', disabled: true },
-] as const
+  { name: 'stats', label: 'Прогресс', route: '/stats', icon: '▦' },
+  { name: 'goals', label: 'Цели', route: '/goals', icon: '◎' },
+  { name: 'settings', label: 'Настройки', route: '/settings', icon: '⚙' },
+]
 
 const activeName = computed(() => {
   const path = route.path
   if (path.startsWith('/day')) return 'day'
-  if (path.startsWith('/dishes')) return 'dishes'
-  if (path.startsWith('/stats')) return 'stats'
-  if (path.startsWith('/settings')) return 'settings'
+  if (path.startsWith('/stats') || path.startsWith('/history')) return 'stats'
+  if (path.startsWith('/goals')) return 'goals'
+  if (path.startsWith('/settings') || path.startsWith('/dishes')) return 'settings'
   return ''
 })
 
-function go(tab: typeof tabs[number]) {
+function go(tab: Tab) {
   if (tab.disabled) return
   if (activeName.value === tab.name) return
   router.push(tab.route)

@@ -1,13 +1,26 @@
 import { api } from './client'
-import type { DayResource, Meal, Measurement, Workout } from '@/types/api'
+import type { DayResource, Meal, Measurement, ModeCode, Workout } from '@/types/api'
 
 interface DayResponse { data: DayResource }
 interface MealResponse { data: Meal }
 interface MeasurementResponse { data: Measurement }
 interface WorkoutResponse { data: Workout }
 
+export interface DaySummary {
+  date: string
+  totals: { kcal: number; proteinG: number; fatG: number; carbsG: number }
+  weightKg: number | null
+  modeCode: ModeCode | null
+  deltaFromGoal: number | null
+}
+
+interface DaySummariesResponse { data: DaySummary[] }
+
 export const daysApi = {
   get: (date: string) => api.get<DayResponse>(`/days/${date}`),
+
+  list: (from: string, to: string) =>
+    api.get<DaySummariesResponse>(`/days?from=${from}&to=${to}`),
 
   update: (date: string, payload: Partial<{ mood: number; wellbeing: number; sleepHours: number; steps: number; notes: string }>) =>
     api.put<DayResponse>(`/days/${date}`, payload),

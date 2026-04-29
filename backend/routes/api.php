@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MealController;
 use App\Http\Controllers\Api\V1\MeasurementController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\StatsController;
 use App\Http\Controllers\Api\V1\WorkoutController;
 use Illuminate\Support\Facades\Route;
 
@@ -59,5 +60,9 @@ Route::prefix('v1')->group(function () {
         Route::post('dishes', [DishController::class, 'store']);
         Route::put('dishes/{uuid}', [DishController::class, 'update']);
         Route::delete('dishes/{uuid}', [DishController::class, 'destroy']);
+
+        // Stats
+        Route::get('stats/summary', [StatsController::class, 'summary']);
+        Route::get('stats/series', [StatsController::class, 'series']);
     });
 });
