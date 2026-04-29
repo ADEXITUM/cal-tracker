@@ -1,0 +1,17 @@
+# Production — replace :80 with your domain for auto-HTTPS
+:80 {
+    header {
+        X-Frame-Options DENY
+        X-Content-Type-Options nosniff
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+
+    @api path /api/*
+    handle @api {
+        reverse_proxy backend:8080
+    }
+
+    handle {
+        reverse_proxy frontend:80
+    }
+}

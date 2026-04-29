@@ -1,0 +1,101 @@
+services:
+  proxy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - dt-network
+    depends_on:
+      - frontend
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    networks:
+      - dt-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      APP_NAME: DietTracker
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: dt
+      DB_USERNAME: dt
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+    secrets:
+      - db_password
+    networks:
+      - dt-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: dt
+      POSTGRES_USER: dt
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - dt-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dt -d dt"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:16-alpine
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: dt
+      POSTGRES_USER: dt
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      HEALTHCHECK_PORT: 8080
+    secrets:
+      - db_password
+    volumes:
+      - ./backups:/backups
+    networks:
+      - dt-network
+    depends_on:
+      db:
+        condition: service_healthy
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  dt-network:
+    driver: bridge
