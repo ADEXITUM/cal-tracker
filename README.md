@@ -36,6 +36,19 @@ make deploy      — деплой (git pull + build + up)
 make backup      — ручной бэкап БД
 ```
 
+## Документация
+
+Для агентов и новых разработчиков: [AGENTS.md](AGENTS.md) — входная дверь.
+
+Дальше:
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — что где живёт
+- [docs/FORMULAS.md](docs/FORMULAS.md) — все числа в одном месте (TDEE, mode, macros, пороги insights)
+- [docs/06-insights.md](docs/06-insights.md) — TDEE, режимы дня, правила подсказок
+- [docs/02-database.md](docs/02-database.md) — схема БД
+- [docs/03-api.md](docs/03-api.md) — эндпоинты
+- [docs/04-frontend.md](docs/04-frontend.md) — структура UI
+- [docs/05-design.md](docs/05-design.md) — токены, темы
+
 ## Деплой на VPS
 
 См. [docs/08-deployment.md](docs/08-deployment.md)

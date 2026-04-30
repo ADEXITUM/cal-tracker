@@ -15,6 +15,12 @@ use Carbon\Carbon;
 
 class DayAggregator
 {
+    /**
+     * Used when the user has no logged measurements yet — TDEE still needs a
+     * weight, so we use a generic placeholder. Surfaced in UI as a hint to log.
+     */
+    public const FALLBACK_WEIGHT_KG = 80.0;
+
     public static function forDate(User $user, Carbon $date): array
     {
         $entry = DayEntry::where('user_id', $user->id)
@@ -24,11 +30,11 @@ class DayAggregator
 
         $goal = GoalResolver::forDate($user, $date);
 
-        // Latest weight for TDEE — look back up to 30 days
+        // Latest weight on or before this date drives TDEE for the day.
         $latestWeight = \App\Models\Measurement::where('user_id', $user->id)
             ->where('measured_at', '<=', $date->endOfDay())
             ->orderByDesc('measured_at')
-            ->value('weight_kg') ?? 80.0;
+            ->value('weight_kg') ?? self::FALLBACK_WEIGHT_KG;
 
         $profile = $user->profile;
 

@@ -8,10 +8,20 @@ use App\Models\DayEntry;
 use App\Models\Measurement;
 use App\Models\User;
 use App\Services\Goals\GoalResolver;
+use App\Support\Numbers;
 use Carbon\Carbon;
 
 class StatsAggregator
 {
+    /** Rolling window applied to time-series for smoothing — one week. */
+    public const ROLLING_WINDOW_DAYS = 7;
+
+    /** Weight trend (kg/week) is suppressed unless we have at least this many weigh-ins... */
+    public const TREND_MIN_MEASUREMENTS = 5;
+
+    /** ...spanning at least this many days (otherwise slope × 7 explodes). */
+    public const TREND_MIN_SPAN_DAYS = 7;
+
     /** @return array<string, mixed> */
     public static function summary(User $user, Carbon $from, Carbon $to): array
     {
@@ -45,7 +55,7 @@ class StatsAggregator
     public static function series(User $user, string $metric, Carbon $from, Carbon $to): array
     {
         $points = self::pointsForMetric($user, $metric, $from, $to);
-        $rolling = self::rollingAverage($points, 7);
+        $rolling = self::rollingAverage($points, self::ROLLING_WINDOW_DAYS);
 
         return [
             'metric'         => $metric,
@@ -71,18 +81,18 @@ class StatsAggregator
         $start = (float) $first->weight_kg;
         $end   = (float) $last->weight_kg;
 
-        // Linear regression slope — meaningful only with ≥5 days spanning ≥7 days
+        // Linear regression slope — meaningful only with enough data points and span.
         $rows = $sorted->map(fn ($m) => [
             'ts' => $m->measured_at->timestamp,
             'v'  => (float) $m->weight_kg,
         ])->values()->toArray();
         $spanDays = count($rows) >= 2
-            ? ($rows[count($rows) - 1]['ts'] - $rows[0]['ts']) / 86400
+            ? ($rows[count($rows) - 1]['ts'] - $rows[0]['ts']) / Numbers::SECONDS_PER_DAY
             : 0;
-        $slopePerDay = (count($rows) >= 5 && $spanDays >= 7)
+        $slopePerDay = (count($rows) >= self::TREND_MIN_MEASUREMENTS && $spanDays >= self::TREND_MIN_SPAN_DAYS)
             ? self::slopePerDay($rows)
             : null;
-        $trend = $slopePerDay !== null ? round($slopePerDay * 7, 2) : null;
+        $trend = $slopePerDay !== null ? round($slopePerDay * Numbers::DAYS_PER_WEEK, 2) : null;
 
         return [
             'start'             => round($start, 1),
@@ -260,7 +270,7 @@ class StatsAggregator
         $baseTs = $rows[0]['ts'];
         $sumX = 0; $sumY = 0; $sumXY = 0; $sumXX = 0;
         foreach ($rows as $r) {
-            $x = ($r['ts'] - $baseTs) / 86400;
+            $x = ($r['ts'] - $baseTs) / Numbers::SECONDS_PER_DAY;
             $y = $r['v'];
             $sumX += $x; $sumY += $y; $sumXY += $x * $y; $sumXX += $x * $x;
         }

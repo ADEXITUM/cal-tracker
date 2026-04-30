@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { goalsApi } from '@/api/goals'
+import { MS_PER_DAY } from '@/lib/time'
 import type { Goal } from '@/types/api'
 
 export const useGoalsStore = defineStore('goals', () => {
@@ -51,7 +52,7 @@ export const useGoalsStore = defineStore('goals', () => {
   async function endGoal(uuid: string): Promise<void> {
     const goal = items.value.find(g => g.uuid === uuid)
     if (!goal) return
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+    const yesterday = new Date(Date.now() - MS_PER_DAY).toISOString().slice(0, 10)
     // Can't end before the goal started
     const endDate = yesterday < goal.startDate ? goal.startDate : yesterday
     await update(uuid, { ...goal, endDate })

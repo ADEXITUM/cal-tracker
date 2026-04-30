@@ -9,6 +9,7 @@ import LineChart from '@/components/charts/LineChart.vue'
 import BarChart from '@/components/charts/BarChart.vue'
 import ComparisonCard from '@/components/stats/ComparisonCard.vue'
 import DayHeatmap from '@/components/charts/DayHeatmap.vue'
+import { MS_PER_DAY, DAYS_PER_WEEK } from '@/lib/time'
 
 type Tab = 'calendar' | 'weight' | 'kcal' | 'measurements'
 type Period = 7 | 30 | 90 | 365
@@ -46,7 +47,7 @@ const periodOptions: { value: Period; label: string }[] = [
 
 const range = computed(() => {
   const to = new Date().toISOString().slice(0, 10)
-  const from = new Date(Date.now() - period.value * 86400000).toISOString().slice(0, 10)
+  const from = new Date(Date.now() - period.value * MS_PER_DAY).toISOString().slice(0, 10)
   return { from, to }
 })
 
@@ -89,7 +90,7 @@ function navigateToDay(date: string) {
   router.push({ name: 'day', params: { date } })
 }
 
-const calendarWeeks = computed(() => Math.ceil(period.value / 7))
+const calendarWeeks = computed(() => Math.ceil(period.value / DAYS_PER_WEEK))
 
 watch([tab, period], () => { reload() })
 onMounted(() => reload())

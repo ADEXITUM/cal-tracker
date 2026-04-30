@@ -10,12 +10,17 @@ use App\Services\Insights\InsightInterface;
 
 class OnlyBreakfastInsight implements InsightInterface
 {
-    public function priority(): int { return 50; }
+    public const PRIORITY = 50;
+
+    /** Only nudge after this hour — earlier it's normal to have just breakfast. */
+    public const REMINDER_AFTER_HOUR = 13;
+
+    public function priority(): int { return self::PRIORITY; }
 
     public function evaluate(InsightContext $ctx): ?Insight
     {
         if ($ctx->meals->isEmpty()) return null;
-        if ($ctx->hoursIntoDay < 13) return null;
+        if ($ctx->hoursIntoDay < self::REMINDER_AFTER_HOUR) return null;
         if (!$ctx->isToday()) return null;
 
         $allBreakfast = $ctx->meals->every(fn ($m) => $m->slot === 'breakfast');

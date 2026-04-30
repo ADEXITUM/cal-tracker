@@ -8,10 +8,38 @@ use App\Models\Measurement;
 use App\Services\Insights\Insight;
 use App\Services\Insights\InsightContext;
 use App\Services\Insights\InsightInterface;
+use App\Support\Numbers;
 
 class WeightTrendInsight implements InsightInterface
 {
-    public function priority(): int { return 30; }
+    public const PRIORITY = 30;
+
+    /** Goal must be at least this old — otherwise the trend is just noise. */
+    public const MIN_GOAL_AGE_DAYS = 14;
+
+    /** Lookback window for measurements feeding the regression. */
+    public const LOOKBACK_DAYS = 30;
+
+    /** Need this many measurements to fit a meaningful slope. */
+    public const MIN_MEASUREMENTS = 5;
+
+    /** Use the most recent N measurements (≈ 2 weeks of near-daily weigh-ins). */
+    public const REGRESSION_WINDOW = 14;
+
+    /**
+     * Cut (deficit) safe-rate thresholds — kg/week.
+     * Negative values; "<=" means "at least this fast in the losing direction".
+     */
+    public const CUT_TOO_FAST_KG_PER_WEEK    = -1.0;  // losing >1 kg/wk → too aggressive
+    public const CUT_SAFE_KG_PER_WEEK        = -0.5;  // 0.5–1.0 kg/wk = safe
+    public const CUT_STALLED_KG_PER_WEEK     = -0.2;  // slower than 0.2 kg/wk → likely adapted
+
+    /** Bulk thresholds — kg/week. */
+    public const BULK_TOO_FAST_KG_PER_WEEK   = 0.7;   // > 0.7 kg/wk = too much fat gain
+    public const BULK_LEAN_MIN_KG_PER_WEEK   = 0.25;
+    public const BULK_LEAN_MAX_KG_PER_WEEK   = 0.5;
+
+    public function priority(): int { return self::PRIORITY; }
 
     public function evaluate(InsightContext $ctx): ?Insight
     {
@@ -20,17 +48,17 @@ class WeightTrendInsight implements InsightInterface
 
         $startedAt = $ctx->goal->start_date;
         $daysSinceStart = (int) abs($startedAt->diffInDays($ctx->date));
-        if ($daysSinceStart < 14) return null;
+        if ($daysSinceStart < self::MIN_GOAL_AGE_DAYS) return null;
 
         $measurements = Measurement::where('user_id', $ctx->user->id)
-            ->where('measured_at', '>=', $ctx->date->copy()->subDays(30))
+            ->where('measured_at', '>=', $ctx->date->copy()->subDays(self::LOOKBACK_DAYS))
             ->orderBy('measured_at')
             ->get();
 
-        if ($measurements->count() < 5) return null;
+        if ($measurements->count() < self::MIN_MEASUREMENTS) return null;
 
-        // Linear regression slope (kg per day) on last up-to-14 measurements
-        $latest = $measurements->take(-14);
+        // Linear regression on the most recent window.
+        $latest = $measurements->take(-self::REGRESSION_WINDOW);
         $n = $latest->count();
         $first = $latest->first();
         if (!$first) return null;
@@ -38,29 +66,35 @@ class WeightTrendInsight implements InsightInterface
 
         $sumX = 0; $sumY = 0; $sumXY = 0; $sumXX = 0;
         foreach ($latest as $m) {
-            $x = ($m->measured_at->timestamp - $baseTs) / 86400; // days
+            $x = ($m->measured_at->timestamp - $baseTs) / Numbers::SECONDS_PER_DAY;
             $y = (float) $m->weight_kg;
             $sumX += $x; $sumY += $y; $sumXY += $x * $y; $sumXX += $x * $x;
         }
         $denom = $n * $sumXX - $sumX * $sumX;
         if ($denom == 0.0) return null;
         $slopePerDay = ($n * $sumXY - $sumX * $sumY) / $denom;
-        $kgPerWeek = round($slopePerDay * 7, 2);
+        $kgPerWeek = round($slopePerDay * Numbers::DAYS_PER_WEEK, 2);
 
         $goalType = $ctx->goal->type;
-        $isCut = $goalType === 'cut';
-        $isBulk = $goalType === 'bulk';
 
-        $assessment = '';
-        if ($isCut) {
-            if ($kgPerWeek <= -1) $assessment = 'Быстрее безопасного — стоит добавить ккал';
-            elseif ($kgPerWeek >= -0.2) $assessment = 'Прогресс замедлился — возможно адаптация';
-            elseif ($kgPerWeek <= -0.5) $assessment = 'Безопасная скорость';
-            else $assessment = 'В рамках нормы';
-        } elseif ($isBulk) {
-            if ($kgPerWeek >= 0.7) $assessment = 'Слишком быстро — много жира будет';
-            elseif ($kgPerWeek >= 0.25 && $kgPerWeek <= 0.5) $assessment = 'Lean bulk темп';
-            else $assessment = 'В рамках нормы';
+        if ($goalType === 'cut') {
+            if ($kgPerWeek <= self::CUT_TOO_FAST_KG_PER_WEEK) {
+                $assessment = 'Быстрее безопасного — стоит добавить ккал';
+            } elseif ($kgPerWeek >= self::CUT_STALLED_KG_PER_WEEK) {
+                $assessment = 'Прогресс замедлился — возможно адаптация';
+            } elseif ($kgPerWeek <= self::CUT_SAFE_KG_PER_WEEK) {
+                $assessment = 'Безопасная скорость';
+            } else {
+                $assessment = 'В рамках нормы';
+            }
+        } elseif ($goalType === 'bulk') {
+            if ($kgPerWeek >= self::BULK_TOO_FAST_KG_PER_WEEK) {
+                $assessment = 'Слишком быстро — много жира будет';
+            } elseif ($kgPerWeek >= self::BULK_LEAN_MIN_KG_PER_WEEK && $kgPerWeek <= self::BULK_LEAN_MAX_KG_PER_WEEK) {
+                $assessment = 'Lean bulk темп';
+            } else {
+                $assessment = 'В рамках нормы';
+            }
         } else {
             return null;
         }

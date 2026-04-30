@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { DaySummary } from '@/api/days'
+import { MS_PER_DAY, DAYS_PER_WEEK } from '@/lib/time'
 
 const props = defineProps<{
   days: DaySummary[]
@@ -19,12 +20,12 @@ const selected = ref<string | null>(null)
 // All dates: weeks × 7, ending today, row-major (week rows, dow columns)
 // Row 0 = oldest week, col 0 = Mon
 const grid = computed(() => {
-  const totalDays = props.weeks * 7
-  const startMs = today.getTime() - (totalDays - 1) * 86400000
+  const totalDays = props.weeks * DAYS_PER_WEEK
+  const startMs = today.getTime() - (totalDays - 1) * MS_PER_DAY
   const rows: string[][] = Array.from({ length: props.weeks }, () => [])
   for (let i = 0; i < totalDays; i++) {
-    const d = new Date(startMs + i * 86400000)
-    const week = Math.floor(i / 7)
+    const d = new Date(startMs + i * MS_PER_DAY)
+    const week = Math.floor(i / DAYS_PER_WEEK)
     rows[week].push(d.toISOString().slice(0, 10))
   }
   return rows

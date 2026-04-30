@@ -64,25 +64,13 @@ export const GOAL_TYPE_DELTA: Record<GoalType, number> = {
   bulk:        +300,
 }
 
-export interface MacroSplit {
-  kcal: number
-  proteinG: number
-  fatG: number
-  carbsG: number
-}
-
-/**
- * Default macro split:
- *   protein = 1.8 g per kg of bodyweight
- *   fat     = 25% of total kcal
- *   carbs   = remainder
- */
-export function defaultMacroSplit(targetKcal: number, weightKg: number): MacroSplit {
-  const proteinG = Math.round(weightKg * 1.8)
-  const fatKcal = targetKcal * 0.25
-  const fatG = Math.round(fatKcal / 9)
-  const proteinKcal = proteinG * 4
-  const remainderKcal = Math.max(0, targetKcal - fatKcal - proteinKcal)
-  const carbsG = Math.round(remainderKcal / 4)
-  return { kcal: targetKcal, proteinG, fatG, carbsG }
-}
+// Macro split has its own module — re-exported for backwards compatibility.
+export {
+  defaultMacroSplit,
+  KCAL_PER_PROTEIN_G,
+  KCAL_PER_CARB_G,
+  KCAL_PER_FAT_G,
+  DEFAULT_PROTEIN_G_PER_KG,
+  DEFAULT_FAT_RATIO,
+  type MacroSplit,
+} from './macros'

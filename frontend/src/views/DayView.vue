@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useDayStore } from '@/stores/day'
 import { daysApi } from '@/api/days'
 import { useSwipe } from '@/composables/useSwipe'
+import { MS_PER_DAY, previousDayIso } from '@/lib/time'
 import type { DayResource } from '@/types/api'
 import KcalRing from '@/components/charts/KcalRing.vue'
 import AModeBadge from '@/components/ui/AModeBadge.vue'
@@ -34,16 +35,15 @@ const activeTab = ref<'goal' | 'balance'>('goal')
 const prevDayData = ref<DayResource | null>(null)
 const prevDayDate = ref<string | null>(null)
 
-function prevDate(iso: string): string {
-  const d = new Date(iso + 'T12:00:00')
-  d.setDate(d.getDate() - 1)
-  return d.toISOString().slice(0, 10)
-}
+/** Look back this far when finding the most-recent day with logged data. */
+const PREV_DAY_LOOKBACK_DAYS = 60
+
+const prevDate = previousDayIso
 
 async function fetchPrevDay(date: string) {
   try {
     // Find the most recent prior day that actually has data
-    const from = new Date(new Date(date + 'T12:00:00').getTime() - 60 * 86400000).toISOString().slice(0, 10)
+    const from = new Date(new Date(date + 'T12:00:00').getTime() - PREV_DAY_LOOKBACK_DAYS * MS_PER_DAY).toISOString().slice(0, 10)
     const listRes = await daysApi.list(from, prevDate(date))
     const withData = listRes.data
       .filter(d => d.date < date && (d.totals.kcal > 0 || d.weightKg !== null || d.modeCode !== null))
@@ -77,7 +77,7 @@ const displayDate = computed(() => {
   const today = new Date().toISOString().slice(0, 10)
   const d = new Date(dateParam.value + 'T12:00:00')
   if (dateParam.value === today) return 'Сегодня'
-  if (dateParam.value === new Date(Date.now() - 86400000).toISOString().slice(0, 10)) return 'Вчера'
+  if (dateParam.value === new Date(Date.now() - MS_PER_DAY).toISOString().slice(0, 10)) return 'Вчера'
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 })
 
@@ -117,7 +117,7 @@ function formatShortDate(iso: string): string {
 function daysBetween(fromIso: string, toIso: string): number {
   const a = new Date(fromIso + 'T12:00:00').getTime()
   const b = new Date(toIso + 'T12:00:00').getTime()
-  return Math.round((b - a) / 86400000)
+  return Math.round((b - a) / MS_PER_DAY)
 }
 
 const macroCards = computed(() => {

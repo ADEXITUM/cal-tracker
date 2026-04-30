@@ -1,124 +1,193 @@
-# 06. Insights и режимы
+# 06. Insights, режимы и TDEE
 
-## Тон
+> **Все цифры из этого документа — это копия из кода.** Если код и документ
+> расходятся, прав код. Источник правды для каждого числа указан рядом
+> (имя класса + константа). Если нужно поменять порог — меняй константу,
+> потом обнови этот документ.
 
-1. Факт + прогноз + (опц.) рычаг. Не «молодец», а «−0.5 кг/нед, к маю −2 кг»
-2. Никаких эмоций «хорошо/плохо». Только числа и направление
-3. После переедания — recovery, не «компенсируем» (это критично, иначе цикл срыв→голодовка→срыв)
-4. Максимум 1-2 подсказки на главном экране. Если кандидатов больше — берём с наивысшим priority
-5. Подсказки можно дисмиссить свайпом → не показывать на сегодня (`localStorage[dismissed_insights_${date}]`)
+## Принципы
 
-## Тоны (визуальные)
+1. **Цель = сколько ккал есть в день.** Это число фиксируется при создании
+   цели и никаким TDEE не «корректируется». Шаги/тренировки лишь меняют
+   расход, а не план.
+2. **Бейдж дня = «как съел vs план»**, а не «как съел vs TDEE». Запись шагов
+   не должна менять «Поддержка» на «Сушка».
+3. **Тип цели (cut / maintenance / bulk)** — отдельная сущность. Висит на
+   цели весь её срок и используется только для долгосрочных подсказок (тренд
+   веса).
+4. **Минимум подсказок:** показываем не больше 2 на главном экране, выбор по
+   priority DESC.
 
-- `neutral` — серый бордер, иконка Info
-- `good` — зелёный, Check
-- `warm` — accent, Compass
-- `warn` — yellow, AlertTriangle (не используем в MVP)
-- `alert` — red, AlertOctagon (не используем в MVP)
+## Тоны
 
-## TDEE расчёт
+`neutral` (серый), `good` (зелёный), `warm` (accent). `warn`/`alert` зарезервированы, в MVP не используются.
 
-Service `Tdee\TdeeCalculator`. Зеркало в `frontend/src/lib/tdee.ts` (для live preview при создании цели). Тесты на бэке и фронте проверяют одинаковые числа на одинаковых входах.
+## TDEE — расчёт расхода
 
-Алгоритм:
+Источник: `App\Services\Tdee\TdeeCalculator`. Зеркало во фронте: `frontend/src/lib/tdee.ts`. Тесты на обеих сторонах сверяют результат.
 
-1. **BMR (Mifflin-St Jeor)** на последнем известном весе:
-   - male: `10*weight + 6.25*height - 5*age + 5`
-   - female: `10*weight + 6.25*height - 5*age - 161`
-2. **Activity multiplier:** sedentary 1.2, light 1.375, moderate 1.55, active 1.725
-   - `baseActivity = bmr * (multiplier - 1)`
-3. **Steps bonus** (если ввёл):
-   - `stepsKcal = steps * weight * 0.0005`
-   - Коэффициент чтобы не считать дважды: sedentary 1.0, light 0.7, moderate 0.4, active 0.2
-4. **Workouts bonus:** `workouts.sum(kcal_burned)`
+```
+BMR (Mifflin-St Jeor):
+  male:   10·weight + 6.25·height − 5·age + 5
+  female: 10·weight + 6.25·height − 5·age − 161
 
-Total = BMR + baseActivity + stepsKcal + workoutsKcal
+Base   = BMR × BASE_MULTIPLIER          // 1.2 — sedentary baseline
+Steps  = steps × weight × STEP_KCAL_PER_KG   // 0.0005 — kcal per (step × kg)
+Workouts = sum(workout.kcal_burned)
 
-## Классификация режима
+TDEE = Base + Steps + Workouts
+```
 
-`Modes\ModeClassifier::classify(goalKcal, tdeeKcal)` возвращает Mode по delta = goal − tdee:
+Константы (один источник правды):
 
-- delta < −600 → `extreme_cut` "Экстрим-сушка"
-- −600..−300 → `cut` "Сушка"
-- −300..−100 → `cut_lite` "Лёгкая сушка"
-- −100..+100 → `maintenance` "Поддержка"
-- +100..+300 → `light_bulk` "Лёгкий набор"
-- > +300 → `bulk` "Набор"
+| Имя | Значение | Где |
+|---|---|---|
+| `BASE_MULTIPLIER` | 1.2 | `TdeeCalculator::BASE_MULTIPLIER`, `frontend/src/lib/tdee.ts` |
+| `STEP_KCAL_PER_KG` | 0.0005 | `TdeeCalculator::STEP_KCAL_PER_KG`, `frontend/src/lib/tdee.ts` |
 
-Пороги в `config/modes.php`. Frontend mirror в `lib/modes.ts`.
+**Activity level** (`sedentary` / `light` / `moderate` / `active`) больше **не хранится в профиле**. Используется только локально, в калькуляторе цели, чтобы предложить стартовое число kcal — см. `frontend/src/lib/tdee.ts: ACTIVITY_MULTIPLIER`.
 
-## Тексты режимов (для explainer modal)
+## Классификация дня (mode)
 
-- **extreme_cut:** Очень большой дефицит >25%. Ок на 4 недели максимум. На длинной дистанции даёт срывы и потерю мышц. Рекомендую увеличить ккал.
-- **cut:** Средний дефицит. Безопасно 6-8 недель, потом diet break 1-2 недели. Прогресс на весах через 2-3 недели.
-- **cut_lite:** Небольшой дефицит. Медленнее но проще держать долго (3+ месяцев). Хорошо для рекомпозиции.
-- **maintenance:** Калории около нормы. Стабилизация веса. Идеально для diet break или образа жизни.
-- **light_bulk:** Небольшой профицит. Медленный набор массы с минимумом жира.
-- **bulk:** Профицит для активного набора. Часть прибавки — жир, это нормально. После 3-4 месяцев — на сушку.
+Источник: `App\Services\Modes\ModeClassifier::classify($goalKcal, $eatenKcal)`.
+Зеркало: `frontend/src/lib/modes.ts: classifyMode`.
+
+```
+delta = eaten − goal
+pct   = |delta| / goal
+
+|pct| ≤ 5%       → on_target  «На цели»
+delta > 0, ≤ 15% → over       «Перебор»
+delta > 0, > 15% → far_over   «Сильный перебор»
+delta < 0, ≤ 15% → under      «Недобор»
+delta < 0, > 15% → far_under  «Сильный недобор»
+```
+
+| Имя | Значение | Где |
+|---|---|---|
+| `ON_TARGET_PCT` | 0.05 | `ModeClassifier::ON_TARGET_PCT`, `frontend/src/lib/modes.ts` |
+| `MODERATE_PCT`  | 0.15 | `ModeClassifier::MODERATE_PCT`, `frontend/src/lib/modes.ts` |
+
+## Тип цели (GoalType)
+
+Хранится в `goals.type`: `cut` | `maintenance` | `bulk`. Не вычисляется. Влияет только на:
+
+1. Заголовок чипа на /day («Сушка · день 5/30»).
+2. Ассессмент тренда веса (см. ниже).
+3. Предложение калорий при создании цели:
+   - `cut`        → average_TDEE − 400
+   - `maintenance` → average_TDEE
+   - `bulk`        → average_TDEE + 300
+
+Источник: `frontend/src/lib/modes.ts: GOAL_TYPE_DELTA`.
+
+## Macro split
+
+Источник: `App\Support\Macros::defaultSplit`. Зеркало: `frontend/src/lib/macros.ts: defaultMacroSplit`.
+
+```
+protein_g = round(weight × 1.8)            // PROTEIN_G_PER_KG
+fat_kcal  = target_kcal × 0.25             // FAT_RATIO
+fat_g     = round(fat_kcal / 9)            // KCAL_PER_FAT_G
+carbs_g   = round((target_kcal − fat_kcal − protein_g × 4) / 4)
+                                            // KCAL_PER_PROTEIN_G / KCAL_PER_CARB_G
+```
+
+| Имя | Значение | Где |
+|---|---|---|
+| `PROTEIN_G_PER_KG`  | 1.8  | `Support\Macros::PROTEIN_G_PER_KG`, `lib/macros.ts: DEFAULT_PROTEIN_G_PER_KG` |
+| `FAT_RATIO`         | 0.25 | `Support\Macros::FAT_RATIO`, `lib/macros.ts: DEFAULT_FAT_RATIO` |
+| `KCAL_PER_PROTEIN_G`| 4    | `Support\Numbers::KCAL_PER_PROTEIN_G`, `lib/macros.ts: KCAL_PER_PROTEIN_G` |
+| `KCAL_PER_CARB_G`   | 4    | `Support\Numbers::KCAL_PER_CARB_G`, `lib/macros.ts: KCAL_PER_CARB_G` |
+| `KCAL_PER_FAT_G`    | 9    | `Support\Numbers::KCAL_PER_FAT_G`, `lib/macros.ts: KCAL_PER_FAT_G` |
+
+## InsightEngine
+
+Service. Каждое правило реализует `InsightInterface { evaluate(InsightContext): ?Insight; priority(): int }`. Engine вызывает все, фильтрует non-null, сортирует по priority DESC, возвращает топ-2.
+
+`InsightContext` несёт: `User`, `Carbon $date`, `?DayEntry`, `?Goal`, `?TdeeBreakdown`, `?Mode`, `array $totals`, `Collection $meals/measurements/workouts`, `int $hoursIntoDay`.
+
+## Правила (актуальные пороги)
+
+Каждое значение — `class CONST` в соответствующем правиле; ниже — таблица.
+
+### EmptyDayInsight — priority 90
+Условие: `meals.empty && measurements.empty`.
+- Today: «Запиши вес или приём чтобы отслеживать день»
+- Past: «Не было замеров. Запиши хотя бы вес — тренд важнее идеала»
+
+### RecoveryAfterOverateInsight — priority 85
+Утренняя подсказка после перебора.
+- `hoursIntoDay ≤ MORNING_CUTOFF_HOUR` (12)
+- Вчерашний `eaten − goal > EXCESS_THRESHOLD_KCAL` (300)
+
+### EndOfDayDeficitInsight — priority 80
+Конец дня.
+- `hoursIntoDay ≥ END_OF_DAY_HOUR` (22)
+- `|diff| ≤ ON_TRACK_KCAL_BAND` (200) → «По плану» (good)
+- `diff > 200` → «Перебор. Это (diff × 30) ккал к месяцу» (warm)
+- `diff < −200` → «Большой дефицит» (neutral)
+
+### ForecastInsight — priority 70
+Прогноз остатка дня.
+- `WINDOW_START_HOUR..WINDOW_END_HOUR` = 14..22
+- `meals.count ≥ MIN_MEALS` (2)
+- `avgMealKcal` = среднее за `AVG_MEAL_LOOKBACK_DAYS` (30) дней
+- `remaining = TYPICAL_MEALS_PER_DAY (4) − meals.count`
+- `forecast = totals + remaining × avgMealKcal`
+- `|forecast − goal| ≤ ON_PLAN_BAND` (100) → good
+- `forecast − goal > 100` → warm
+- `forecast − goal < −FAR_UNDER_BAND` (200) → warm
+
+### KcalRemainingInsight — priority 60
+- `WINDOW_START_HOUR..WINDOW_END_HOUR` = 10..22
+- `totals.kcal < goal.kcal`
+
+### OnlyBreakfastInsight — priority 50
+- `hoursIntoDay ≥ REMINDER_AFTER_HOUR` (13), все приёмы — `slot = breakfast`.
+
+### WeightTrendInsight — priority 30
+Долгосрочный тренд через линейную регрессию.
+- `goalAge ≥ MIN_GOAL_AGE_DAYS` (14)
+- Замеров за `LOOKBACK_DAYS` (30) дней ≥ `MIN_MEASUREMENTS` (5)
+- Регрессия по последним `REGRESSION_WINDOW` (14) точкам, `slope × 7 = kgPerWeek`
+
+| Тип цели | Порог | Текст |
+|---|---|---|
+| cut | `kgPerWeek ≤ −1.0` | Быстрее безопасного |
+| cut | `kgPerWeek ≤ −0.5` | Безопасная скорость |
+| cut | `kgPerWeek ≥ −0.2` | Прогресс замедлился |
+| bulk | `kgPerWeek ≥ 0.7` | Слишком быстро |
+| bulk | `0.25 ≤ kgPerWeek ≤ 0.5` | Lean bulk темп |
+
+## Stats — тренд веса в карточке /stats
+
+`App\Services\Stats\StatsAggregator::weightSummary`. Линейная регрессия по дневным значениям веса.
+
+Тренд показывается **только если**:
+- замеров ≥ `TREND_MIN_MEASUREMENTS` (5)
+- размах ≥ `TREND_MIN_SPAN_DAYS` (7) дней
+
+Иначе `trend_kg_per_week = null` и UI показывает «—». Это защищает от артефакта вроде «−140 кг/нед» при 2 точках.
+
+Сглаживание графиков: rolling average окно `ROLLING_WINDOW_DAYS` (7).
 
 ## Mode explainer modal
 
 Открывается тапом на AModeBadge. Содержит:
-1. Заголовок режима + иконка
-2. Расчёт: TDEE / Цель / Разница (ккал и %)
-3. Что это значит (текст из словаря выше)
-4. Прогноз для cut/bulk: при темпе X ккал/день — потеря Y кг/нед, на N дней — Z кг
-5. Безопасность: до 1% веса/нед безопасно. Текущий темп — в норме / на границе / выше
-6. CTA «Изменить цель» → /goals
+1. Заголовок режима
+2. Расчёт: «съедено / план / разница»
+3. Текст из словаря `MODE_DESCRIPTIONS`
+4. CTA «Изменить цель» → /goals
 
-## InsightEngine
-
-Service. Каждое правило реализует `InsightInterface { evaluate(InsightContext): ?Insight; priority(): int }`. Engine вызывает все, фильтрует non-null, сортирует по priority DESC, возвращает топ-1 или топ-2.
-
-`InsightContext` содержит: `User`, `Carbon $date`, `?DayEntry`, `Goal`, `TdeeBreakdown`, `Mode`, `array $totals`, `Collection $meals/measurements`, `int $hoursIntoDay` (локальное время юзера).
-
-## Insights MVP
-
-### EmptyDayInsight (priority 90)
-Условие: `meals.empty && measurements.empty`.
-- Today: «Запиши вес или приём чтобы отслеживать день»
-- Past: «Не было замеров. Запиши хотя бы вес — тренд важнее идеала»
-- Tone: neutral
-
-### OnlyBreakfastInsight (priority 50)
-Условие: только slot=breakfast, currentTime > 13:00.
-Текст: «Записан только завтрак. Не забудь обед». Tone: neutral.
-
-### KcalRemainingInsight (priority 60)
-Условие: `totals.kcal < goal.kcal && hoursIntoDay 10..22`.
-Текст: «Осталось {N} ккал. БЖУ: Б {} Ж {} У {}». Tone: neutral.
-
-### ForecastInsight (priority 70)
-Условие: `meals.count >= 2 && hoursIntoDay 14..22`.
-Расчёт: `avgMealKcal = avg(meals_last_30_days.kcal)`, `remainingMeals = 4 - meals.count`, `forecast = totals + remainingMeals * avgMealKcal`.
-- forecast в ±100 от goal: «Идёшь по плану. Прогноз дня: ~{forecast}». Tone: good.
-- forecast > goal+100: «По темпу к концу дня ~{forecast} (+{over}). Можно сократить ужин или добавить активность». Tone: warm.
-- forecast < goal-200: «По темпу к концу дня ~{forecast} (−{under}). Не урезай ниже цели — это контрпродуктивно». Tone: warm.
-
-### EndOfDayDeficitInsight (priority 80)
-Условие: `hoursIntoDay >= 22`.
-- В пределах ±200 от цели: «Дефицит дня: {N}. По плану». Tone: good.
-- Перебор > 200: «Сегодня +{N} от плана. Это {monthly_impact} к месяцу. Завтра — план тот же, не урезай». Tone: warm.
-- Недобор > 300: «Сегодня большой дефицит {N}. Если намеренно — ок. Если случайно — стоит добавить». Tone: neutral.
-
-### RecoveryAfterOverateInsight (priority 85) — критично
-Условие: `today == startOfDay && yesterday.totals.kcal > yesterday.goal.kcal + 300`.
-Текст: «Вчера было +{excess} от плана. Сегодня план тот же — не урезай больше, это контрпродуктивно. Просто продолжай». Tone: warm.
-
-### WeightTrendInsight (priority 30)
-Условие: прошло 14+ дней с старта текущей цели.
-Расчёт: линейная регрессия по 14 последним замерам.
-Текст: «Темп за 2 недели: {kgPerWeek} кг/нед. {assessment}»:
-- cut, темп −0.5..−1 кг/нед: «Безопасная скорость»
-- cut, темп быстрее −1: «Быстрее безопасного — стоит добавить ккал»
-- cut, темп медленнее −0.2: «Прогресс замедлился — возможно адаптация»
-- bulk, темп +0.25..+0.5: «Lean bulk темп»
-- bulk, быстрее +0.7: «Слишком быстро — много жира будет»
+Расчёт прогноза по неделям убран — он живёт в долгосрочных insights, не в модалке дня.
 
 ## Тесты
 
-Каждый insight — отдельный класс с pure `evaluate()`. Юнит-тесты с фабрикой `makeContext([...])` для разных входных данных. Покрываются все ветки tone.
+- `backend/tests/Unit/TdeeCalculatorTest.php` — формула BMR, base, steps, workouts.
+- `backend/tests/Unit/ModeClassifierTest.php` — все 5 веток + границы.
+- `frontend/src/lib/__tests__/{tdee,modes}.spec.ts` — зеркальные тесты, должны давать те же числа.
 
 ## Open questions
 
-- Хранить dismissed insights на бэке для синка между устройствами — **нет**, это per-day, локально на фронте достаточно
+- Dismissed insights живут только на фронте (`localStorage[dismissed_insights_${date}]`) — синк между устройствами не нужен.

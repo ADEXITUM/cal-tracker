@@ -8,6 +8,7 @@ use App\Models\DayEntry;
 use App\Models\Dish;
 use App\Models\Meal;
 use App\Models\User;
+use App\Support\Numbers;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 
@@ -15,7 +16,8 @@ class MealFactory
 {
     public static function fromDish(DayEntry $entry, User $user, Dish $dish, float $grams, string $slot, Carbon $eatenAt): Meal
     {
-        $factor = $grams / 100;
+        // Dish nutrition is stored per 100g — scale by actual portion.
+        $factor = $grams / Numbers::NUTRITION_REFERENCE_GRAMS;
 
         return Meal::create([
             'day_entry_id' => $entry->id,

@@ -10,6 +10,7 @@ use App\Http\Resources\MealResource;
 use App\Models\Dish;
 use App\Models\Meal;
 use App\Services\Meals\MealFactory;
+use App\Support\Numbers;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,7 +50,7 @@ class MealController extends Controller
 
         if ($request->filled('dish_uuid')) {
             $dish = Dish::where('uuid', $request->dish_uuid)->where('user_id', $request->user()->id)->firstOrFail();
-            $factor = (float) $request->grams / 100;
+            $factor = (float) $request->grams / Numbers::NUTRITION_REFERENCE_GRAMS;
             $meal->update([
                 'dish_id'   => $dish->id,
                 'grams'     => $request->grams,

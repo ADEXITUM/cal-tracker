@@ -10,13 +10,19 @@ use App\Services\Insights\InsightInterface;
 
 class KcalRemainingInsight implements InsightInterface
 {
-    public function priority(): int { return 60; }
+    public const PRIORITY = 60;
+
+    /** Show only during waking hours when adjustments are still possible. */
+    public const WINDOW_START_HOUR = 10;
+    public const WINDOW_END_HOUR   = 22;
+
+    public function priority(): int { return self::PRIORITY; }
 
     public function evaluate(InsightContext $ctx): ?Insight
     {
         if (!$ctx->goal) return null;
         if (!$ctx->isToday()) return null;
-        if ($ctx->hoursIntoDay < 10 || $ctx->hoursIntoDay > 22) return null;
+        if ($ctx->hoursIntoDay < self::WINDOW_START_HOUR || $ctx->hoursIntoDay > self::WINDOW_END_HOUR) return null;
         if ($ctx->totals['kcal'] >= $ctx->goal->kcal) return null;
 
         $remainingKcal = (int) round($ctx->goal->kcal - $ctx->totals['kcal']);

@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { defaultMacroSplit, GOAL_TYPE_DELTA, type MacroSplit } from '@/lib/modes'
+import { GOAL_TYPE_DELTA } from '@/lib/modes'
+import {
+  defaultMacroSplit,
+  DEFAULT_PROTEIN_G_PER_KG,
+  DEFAULT_FAT_RATIO,
+  KCAL_PER_FAT_G,
+  KCAL_PER_CARB_G,
+  type MacroSplit,
+} from '@/lib/macros'
 import { ACTIVITY_LABEL, estimateAverageTdee } from '@/lib/tdee'
 import ACard from '@/components/ui/ACard.vue'
 import type { ActivityLevel, Gender, GoalType } from '@/types/api'
@@ -105,9 +113,9 @@ const isUsingSuggested = computed(() =>
       </ul>
       <p class="mt-2 mb-1"><strong>БЖУ-сплит:</strong></p>
       <ul class="list-disc pl-5 space-y-0.5">
-        <li>Белки = 1.8 × вес ({{ Math.round(weightKg * 1.8) }} г)</li>
-        <li>Жиры = 25% ккал ÷ 9</li>
-        <li>Углеводы = остаток ÷ 4</li>
+        <li>Белки = {{ DEFAULT_PROTEIN_G_PER_KG }} × вес ({{ Math.round(weightKg * DEFAULT_PROTEIN_G_PER_KG) }} г)</li>
+        <li>Жиры = {{ Math.round(DEFAULT_FAT_RATIO * 100) }}% ккал ÷ {{ KCAL_PER_FAT_G }}</li>
+        <li>Углеводы = остаток ÷ {{ KCAL_PER_CARB_G }}</li>
       </ul>
     </div>
 

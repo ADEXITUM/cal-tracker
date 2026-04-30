@@ -10,7 +10,9 @@ use App\Services\Insights\InsightInterface;
 
 class EmptyDayInsight implements InsightInterface
 {
-    public function priority(): int { return 90; }
+    public const PRIORITY = 90;
+
+    public function priority(): int { return self::PRIORITY; }
 
     public function evaluate(InsightContext $ctx): ?Insight
     {
