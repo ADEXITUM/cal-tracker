@@ -39,7 +39,7 @@ class StatsAggregator
     }
 
     /**
-     * @param 'weight'|'body_fat_pct'|'muscle_mass_kg'|'body_water_pct'|'kcal'|'protein_g'|'fat_g'|'carbs_g'|'steps' $metric
+     * @param 'weight'|'body_fat_pct'|'waist_cm'|'hips_cm'|'chest_cm'|'biceps_cm'|'kcal'|'protein_g'|'fat_g'|'carbs_g'|'steps' $metric
      * @return array<string, mixed>
      */
     public static function series(User $user, string $metric, Carbon $from, Carbon $to): array
@@ -151,8 +151,8 @@ class StatsAggregator
     /** @return list<array{date: string, value: float|null}> */
     private static function pointsForMetric(User $user, string $metric, Carbon $from, Carbon $to): array
     {
-        $weightFields = ['weight_kg', 'body_fat_pct', 'muscle_mass_kg', 'body_water_pct'];
-        if (in_array(self::dbField($metric), $weightFields, true)) {
+        $measurementFields = ['weight_kg', 'body_fat_pct', 'waist_cm', 'hips_cm', 'chest_cm', 'biceps_cm'];
+        if (in_array(self::dbField($metric), $measurementFields, true)) {
             return self::measurementPoints($user, self::dbField($metric), $from, $to);
         }
         $mealFields = ['kcal', 'protein_g', 'fat_g', 'carbs_g'];
@@ -168,11 +168,13 @@ class StatsAggregator
     private static function dbField(string $metric): string
     {
         return match ($metric) {
-            'weight'        => 'weight_kg',
-            'body_fat_pct'  => 'body_fat_pct',
-            'muscle_mass_kg' => 'muscle_mass_kg',
-            'body_water_pct' => 'body_water_pct',
-            default         => $metric,
+            'weight'       => 'weight_kg',
+            'body_fat_pct' => 'body_fat_pct',
+            'waist_cm'     => 'waist_cm',
+            'hips_cm'      => 'hips_cm',
+            'chest_cm'     => 'chest_cm',
+            'biceps_cm'    => 'biceps_cm',
+            default        => $metric,
         };
     }
 

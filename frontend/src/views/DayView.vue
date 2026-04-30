@@ -10,6 +10,7 @@ import AButton from '@/components/ui/AButton.vue'
 import DayFab from '@/components/day/DayFab.vue'
 import AddMealSheet from '@/components/add/AddMealSheet.vue'
 import AddMeasurementSheet from '@/components/add/AddMeasurementSheet.vue'
+import AddStepsSheet from '@/components/add/AddStepsSheet.vue'
 import AddWorkoutSheet from '@/components/add/AddWorkoutSheet.vue'
 import ModeExplainerModal from '@/components/day/ModeExplainerModal.vue'
 import DayInsights from '@/components/day/DayInsights.vue'
@@ -20,6 +21,7 @@ const day = useDayStore()
 
 const showAddMeal = ref(false)
 const showAddMeasurement = ref(false)
+const showAddSteps = ref(false)
 const showAddWorkout = ref(false)
 const showModeExplainer = ref(false)
 
@@ -48,9 +50,10 @@ useSwipe({
   },
 })
 
-function openAdd(type: 'meal' | 'measurement' | 'workout') {
+function openAdd(type: 'meal' | 'measurement' | 'steps' | 'workout') {
   if (type === 'meal') showAddMeal.value = true
   else if (type === 'measurement') showAddMeasurement.value = true
+  else if (type === 'steps') showAddSteps.value = true
   else showAddWorkout.value = true
 }
 
@@ -83,6 +86,18 @@ const macroCards = computed(() => {
     make('Жиры', totals?.fatG ?? 0, goal?.fatG),
     make('Углеводы', totals?.carbsG ?? 0, goal?.carbsG),
   ]
+})
+
+const measurementCells = computed(() => {
+  const m = day.data?.measurements[0]
+  const cells: { label: string; value: string }[] = []
+  if (m?.weightKg)   cells.push({ label: 'кг',        value: String(m.weightKg) })
+  if (m?.bodyFatPct) cells.push({ label: '% жира',    value: String(m.bodyFatPct) })
+  if (m?.waistCm)    cells.push({ label: 'см талия',  value: String(m.waistCm) })
+  if (m?.chestCm)    cells.push({ label: 'см грудь',  value: String(m.chestCm) })
+  if (m?.hipsCm)     cells.push({ label: 'см бёдра',  value: String(m.hipsCm) })
+  if (m?.bicepsCm)   cells.push({ label: 'см бицепс', value: String(m.bicepsCm) })
+  return cells
 })
 
 const sprintChip = computed(() => {
@@ -221,33 +236,46 @@ const sprintChip = computed(() => {
               @click="showAddMeasurement = true"
             >Изменить</button>
           </div>
-          <div v-if="day.data.measurements.length === 0 && (day.data.dayEntry?.steps ?? 0) === 0" class="text-sm py-1" style="color: var(--color-text-3)">
+          <div v-if="measurementCells.length === 0" class="text-sm py-1" style="color: var(--color-text-3)">
             Нет замеров на этот день
           </div>
           <div v-else class="flex flex-wrap gap-x-4 gap-y-2">
-            <div v-if="day.data.measurements[0]?.weightKg" class="flex items-baseline gap-1.5">
-              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
-                {{ day.data.measurements[0].weightKg }}
-              </span>
-              <span class="text-xs" style="color: var(--color-text-3)">кг</span>
+            <div v-for="m in measurementCells" :key="m.label" class="flex items-baseline gap-1.5">
+              <span class="font-mono text-xl font-light" style="color: var(--color-text)">{{ m.value }}</span>
+              <span class="text-xs" style="color: var(--color-text-3)">{{ m.label }}</span>
             </div>
-            <div v-if="day.data.measurements[0]?.bodyFatPct" class="flex items-baseline gap-1.5">
-              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
-                {{ day.data.measurements[0].bodyFatPct }}
-              </span>
-              <span class="text-xs" style="color: var(--color-text-3)">% жира</span>
-            </div>
-            <div v-if="day.data.measurements[0]?.muscleMassKg" class="flex items-baseline gap-1.5">
-              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
-                {{ day.data.measurements[0].muscleMassKg }}
-              </span>
-              <span class="text-xs" style="color: var(--color-text-3)">кг мышц</span>
-            </div>
-            <div v-if="day.data.dayEntry?.steps" class="flex items-baseline gap-1.5">
-              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
-                {{ day.data.dayEntry.steps.toLocaleString('ru-RU') }}
+          </div>
+        </div>
+      </ACard>
+
+      <!-- Steps -->
+      <ACard>
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-sm font-semibold" style="color: var(--color-text)">Шаги</p>
+            <button
+              v-if="(day.data.dayEntry?.steps ?? 0) > 0"
+              class="text-xs"
+              style="color: var(--color-accent)"
+              @click="showAddSteps = true"
+            >Изменить</button>
+          </div>
+          <div v-if="(day.data.dayEntry?.steps ?? 0) === 0" class="text-sm py-1" style="color: var(--color-text-3)">
+            Шаги не записаны
+          </div>
+          <div v-else class="flex items-baseline gap-3">
+            <div class="flex items-baseline gap-1.5">
+              <span class="font-mono text-2xl font-light" style="color: var(--color-text)">
+                {{ day.data.dayEntry!.steps!.toLocaleString('ru-RU') }}
               </span>
               <span class="text-xs" style="color: var(--color-text-3)">шагов</span>
+            </div>
+            <span style="color: var(--color-text-3)">·</span>
+            <div class="flex items-baseline gap-1.5">
+              <span class="font-mono text-base" style="color: var(--color-accent)">
+                {{ day.data.tdee?.stepsKcal ?? 0 }}
+              </span>
+              <span class="text-xs" style="color: var(--color-text-3)">ккал сожжено</span>
             </div>
           </div>
         </div>
@@ -288,6 +316,7 @@ const sprintChip = computed(() => {
     <!-- Sheets -->
     <AddMealSheet v-model="showAddMeal" />
     <AddMeasurementSheet v-model="showAddMeasurement" />
+    <AddStepsSheet v-model="showAddSteps" />
     <AddWorkoutSheet v-model="showAddWorkout" />
     <ModeExplainerModal
       v-model="showModeExplainer"

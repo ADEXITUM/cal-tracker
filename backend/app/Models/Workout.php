@@ -21,7 +21,6 @@ class Workout extends Model
         'name',
         'duration_min',
         'kcal_burned',
-        'notes',
     ];
 
     protected static function booted(): void

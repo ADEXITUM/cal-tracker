@@ -10,8 +10,9 @@ import BarChart from '@/components/charts/BarChart.vue'
 import ComparisonCard from '@/components/stats/ComparisonCard.vue'
 import DayHeatmap from '@/components/charts/DayHeatmap.vue'
 
-type Tab = 'calendar' | 'weight' | 'kcal' | 'composition'
+type Tab = 'calendar' | 'weight' | 'kcal' | 'measurements'
 type Period = 7 | 30 | 90 | 365
+type GirthMetric = 'waist_cm' | 'chest_cm' | 'hips_cm' | 'biceps_cm'
 
 const router = useRouter()
 const tab = ref<Tab>('calendar')
@@ -25,7 +26,15 @@ const tabOptions: { value: Tab; label: string }[] = [
   { value: 'calendar', label: 'Календарь' },
   { value: 'weight', label: 'Вес' },
   { value: 'kcal', label: 'КБЖУ' },
-  { value: 'composition', label: 'Состав' },
+  { value: 'measurements', label: 'Замеры' },
+]
+
+const girthMetric = ref<GirthMetric>('waist_cm')
+const girthOptions: { value: GirthMetric; label: string }[] = [
+  { value: 'waist_cm',  label: 'Талия' },
+  { value: 'chest_cm',  label: 'Грудь' },
+  { value: 'hips_cm',   label: 'Бёдра' },
+  { value: 'biceps_cm', label: 'Бицепс' },
 ]
 
 const periodOptions: { value: Period; label: string }[] = [
@@ -68,9 +77,9 @@ async function reload() {
 
 async function loadForTab() {
   const metricsByTab: Record<Exclude<Tab, 'calendar'>, StatsMetric[]> = {
-    weight:      ['weight'],
-    kcal:        ['kcal', 'protein_g', 'fat_g', 'carbs_g', 'steps'],
-    composition: ['body_fat_pct'],
+    weight:       ['weight', 'body_fat_pct'],
+    kcal:         ['kcal', 'protein_g', 'fat_g', 'carbs_g', 'steps'],
+    measurements: ['waist_cm', 'chest_cm', 'hips_cm', 'biceps_cm'],
   }
   if (tab.value === 'calendar') return
   await Promise.all(metricsByTab[tab.value].map(loadSeries))
@@ -114,13 +123,21 @@ onMounted(() => reload())
         </ACard>
       </template>
 
-      <!-- Weight tab -->
+      <!-- Weight tab — weight + body fat % combined -->
       <template v-else-if="tab === 'weight'">
         <ComparisonCard
           label="Вес"
           :start="summary?.weight.start ?? null"
           :end="summary?.weight.end ?? null"
           unit="кг"
+          good="down"
+        />
+        <ComparisonCard
+          v-if="summary?.bodyFatPct.start !== null"
+          label="% жира"
+          :start="summary?.bodyFatPct.start ?? null"
+          :end="summary?.bodyFatPct.end ?? null"
+          unit="%"
           good="down"
         />
         <ACard v-if="summary?.weight.trendKgPerWeek !== null && summary?.weight.trendKgPerWeek !== undefined">
@@ -133,13 +150,16 @@ onMounted(() => reload())
         </ACard>
         <ACard>
           <div class="p-3">
-            <p class="text-xs mb-2" style="color: var(--color-text-3)">График веса</p>
+            <p class="text-xs mb-2" style="color: var(--color-text-3)">Вес и % жира</p>
             <div v-if="seriesLoading" class="h-60 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
             <LineChart
               v-else
               :raw="series.weight?.points ?? []"
               :smoothed="series.weight?.rollingAvg7d ?? []"
               unit="кг"
+              :secondary="series.body_fat_pct && series.body_fat_pct.points.some(p => p.value !== null)
+                ? { points: series.body_fat_pct.points, unit: '%', label: '% жира' }
+                : null"
             />
           </div>
         </ACard>
@@ -205,24 +225,20 @@ onMounted(() => reload())
         </ACard>
       </template>
 
-      <!-- Composition tab -->
-      <template v-else-if="tab === 'composition'">
-        <ComparisonCard
-          label="% жира"
-          :start="summary?.bodyFatPct.start ?? null"
-          :end="summary?.bodyFatPct.end ?? null"
-          unit="%"
-          good="down"
-        />
+      <!-- Measurements tab — girth (waist/chest/hips/biceps) -->
+      <template v-else-if="tab === 'measurements'">
+        <ASegmented v-model="girthMetric" :options="girthOptions" />
         <ACard>
           <div class="p-3">
-            <p class="text-xs mb-2" style="color: var(--color-text-3)">% жира</p>
+            <p class="text-xs mb-2" style="color: var(--color-text-3)">
+              {{ girthOptions.find(o => o.value === girthMetric)?.label }} (см)
+            </p>
             <div v-if="seriesLoading" class="h-60 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
             <LineChart
               v-else
-              :raw="series.body_fat_pct?.points ?? []"
-              :smoothed="series.body_fat_pct?.rollingAvg7d ?? []"
-              unit="%"
+              :raw="series[girthMetric]?.points ?? []"
+              :smoothed="series[girthMetric]?.rollingAvg7d ?? []"
+              unit="см"
             />
           </div>
         </ACard>

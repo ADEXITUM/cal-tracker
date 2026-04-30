@@ -126,8 +126,8 @@ function formatDelta(delta: number | null): string {
           ]"
           :style="{
             background: colorFor(date),
-            ringColor: 'var(--color-accent)',
-            ringOffsetColor: 'var(--color-bg)',
+            '--tw-ring-color': 'var(--color-accent)',
+            '--tw-ring-offset-color': 'var(--color-bg)',
             transform: selected === date ? 'scale(1.15)' : '',
           }"
           :disabled="isFuture(date)"

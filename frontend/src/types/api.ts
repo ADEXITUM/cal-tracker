@@ -49,13 +49,10 @@ export interface Measurement {
   measuredAt: string
   weightKg: number
   bodyFatPct: number | null
-  muscleMassKg: number | null
-  bodyWaterPct: number | null
-  visceralFatLevel: number | null
-  boneMassKg: number | null
-  proteinPct: number | null
-  heartRateBpm: number | null
-  source: string | null
+  waistCm: number | null
+  hipsCm: number | null
+  chestCm: number | null
+  bicepsCm: number | null
 }
 
 export interface Workout {
@@ -63,7 +60,6 @@ export interface Workout {
   name: string
   durationMin: number | null
   kcalBurned: number | null
-  notes: string | null
 }
 
 export interface Dish {
@@ -104,15 +100,13 @@ export interface DayMode {
 export interface DayTdee {
   bmr: number
   activityKcal: number
+  stepsKcal: number
+  workoutsKcal: number
   total: number
 }
 
 export interface DayEntry {
-  mood: number | null
-  wellbeing: number | null
-  sleepHours: number | null
   steps: number | null
-  notes: string | null
 }
 
 export interface DayResource {

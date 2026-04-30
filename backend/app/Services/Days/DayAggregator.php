@@ -84,6 +84,8 @@ class DayAggregator
             'tdee'         => $tdeeBreakdown ? [
                 'bmr'           => $tdeeBreakdown->bmr,
                 'activity_kcal' => $tdeeBreakdown->activityKcal,
+                'steps_kcal'    => $tdeeBreakdown->stepsKcal,
+                'workouts_kcal' => $tdeeBreakdown->workoutsKcal,
                 'total'         => $tdeeBreakdown->total,
             ] : null,
             'mode'         => $mode ? [

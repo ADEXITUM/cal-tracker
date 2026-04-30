@@ -18,7 +18,6 @@ return new class extends Migration
             $table->string('name', 120);
             $table->smallInteger('duration_min')->nullable();
             $table->smallInteger('kcal_burned')->nullable();
-            $table->string('notes', 500)->nullable();
             $table->timestamps();
 
             $table->index('user_id');

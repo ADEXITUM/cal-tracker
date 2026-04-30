@@ -20,20 +20,25 @@ class MeasurementController extends Controller
         $user  = $request->user();
         $entry = MealFactory::getOrCreateEntry($user, $date);
 
-        // Upsert: one measurement per day per user (overwrite same-day entry)
+        // The client may send measured_at as "now", but the canonical timestamp
+        // for stats grouping must match the day the user is editing. Anchor it
+        // to noon of that date so it always falls inside the day in any tz.
+        $payload = $request->validated();
+        $payload['measured_at'] = \Carbon\Carbon::parse($date . ' 12:00:00', $user->timezone ?? 'UTC');
+
         $existing = Measurement::where('user_id', $user->id)
             ->where('day_entry_id', $entry->id)
             ->first();
 
         if ($existing) {
-            $existing->update($request->validated());
+            $existing->update($payload);
             return response()->json(['data' => new MeasurementResource($existing)]);
         }
 
         $measurement = Measurement::create([
             'day_entry_id' => $entry->id,
             'user_id'      => $user->id,
-            ...$request->validated(),
+            ...$payload,
         ]);
 
         return response()->json(['data' => new MeasurementResource($measurement)], 201);

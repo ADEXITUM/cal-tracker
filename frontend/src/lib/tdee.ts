@@ -22,6 +22,14 @@ const STEPS_COEFFICIENT: Record<ActivityLevel, number> = {
   active: 0.2,
 }
 
+/** Rough kcal burned by walking `steps` for someone of `weightKg`,
+ *  net of the baseline activity already accounted for in the multiplier
+ *  (so "couch potato + 8k steps" gets a bigger bonus than "active + 8k steps"). */
+export function stepsKcal(steps: number, weightKg: number, activityLevel: ActivityLevel): number {
+  if (!steps || steps <= 0) return 0
+  return Math.round(steps * weightKg * 0.0005 * STEPS_COEFFICIENT[activityLevel])
+}
+
 function ageFromBirthDate(birthDate: string): number {
   const birth = new Date(birthDate + 'T12:00:00')
   const now = new Date()
@@ -50,14 +58,10 @@ export function computeTdee(input: {
   const mult = ACTIVITY_MULTIPLIER[input.activityLevel]
   const activityKcal = Math.round(bmr * (mult - 1))
 
-  let stepsKcal = 0
-  if (input.steps && input.steps > 0) {
-    const coeff = STEPS_COEFFICIENT[input.activityLevel]
-    stepsKcal = Math.round(input.steps * input.weightKg * 0.0005 * coeff)
-  }
+  const stepsKcalVal = stepsKcal(input.steps ?? 0, input.weightKg, input.activityLevel)
 
   const workoutsKcal = input.workoutsKcal ?? 0
-  const total = bmr + activityKcal + stepsKcal + workoutsKcal
+  const total = bmr + activityKcal + stepsKcalVal + workoutsKcal
 
-  return { bmr, activityKcal, stepsKcal, workoutsKcal, total }
+  return { bmr, activityKcal, stepsKcal: stepsKcalVal, workoutsKcal, total }
 }

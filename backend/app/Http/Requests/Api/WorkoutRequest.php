@@ -17,7 +17,6 @@ class WorkoutRequest extends FormRequest
             'name'         => ['required', 'string', 'max:120'],
             'duration_min' => ['nullable', 'integer', 'min:1', 'max:1440'],
             'kcal_burned'  => ['nullable', 'integer', 'min:0', 'max:5000'],
-            'notes'        => ['nullable', 'string', 'max:500'],
         ];
     }
 }

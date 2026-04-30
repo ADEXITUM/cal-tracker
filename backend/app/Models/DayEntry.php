@@ -18,21 +18,14 @@ class DayEntry extends Model
     protected $fillable = [
         'user_id',
         'date',
-        'mood',
-        'wellbeing',
-        'sleep_hours',
         'steps',
-        'notes',
     ];
 
     protected function casts(): array
     {
         return [
-            'date'        => 'date',
-            'mood'        => 'integer',
-            'wellbeing'   => 'integer',
-            'sleep_hours' => 'float',
-            'steps'       => 'integer',
+            'date'  => 'date',
+            'steps' => 'integer',
         ];
     }
 

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-const emit = defineEmits<{ add: [type: 'meal' | 'measurement' | 'workout'] }>()
+const emit = defineEmits<{ add: [type: 'meal' | 'measurement' | 'steps' | 'workout'] }>()
 const open = ref(false)
 
 function toggle() { open.value = !open.value }
-function pick(type: 'meal' | 'measurement' | 'workout') {
+function pick(type: 'meal' | 'measurement' | 'steps' | 'workout') {
   open.value = false
   emit('add', type)
 }
@@ -19,6 +19,7 @@ function pick(type: 'meal' | 'measurement' | 'workout') {
           v-for="item in [
             { type: 'meal' as const, label: 'Приём пищи' },
             { type: 'measurement' as const, label: 'Замер' },
+            { type: 'steps' as const, label: 'Шаги' },
             { type: 'workout' as const, label: 'Тренировка' },
           ]"
           :key="item.type"

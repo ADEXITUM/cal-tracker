@@ -64,6 +64,11 @@ function modeFor(g: Goal) {
   return classifyMode(g.kcal, tdeeKcal.value)
 }
 
+async function confirmEnd(g: Goal) {
+  if (!confirm(`Завершить цель «${g.kcal} ккал» сегодняшним днём?`)) return
+  await goals.endGoal(g.uuid)
+}
+
 const sortedGoals = computed(() => goals.sorted)
 </script>
 
@@ -119,6 +124,12 @@ const sortedGoals = computed(() => goals.sorted)
               {{ formatDate(g.startDate) }} → {{ g.endDate ? formatDate(g.endDate) : 'без срока' }}
             </p>
           </div>
+          <button
+            v-if="isActive(g) && !g.endDate"
+            class="text-xs px-2 py-1 rounded-[var(--radius-sm)] flex-shrink-0"
+            style="color: var(--color-text-2); background: var(--color-surface-2)"
+            @click.stop="confirmEnd(g)"
+          >Завершить</button>
         </div>
       </ACard>
     </div>

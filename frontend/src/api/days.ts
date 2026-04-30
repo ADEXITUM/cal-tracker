@@ -22,7 +22,7 @@ export const daysApi = {
   list: (from: string, to: string) =>
     api.get<DaySummariesResponse>(`/days?from=${from}&to=${to}`),
 
-  update: (date: string, payload: Partial<{ mood: number; wellbeing: number; sleepHours: number; steps: number; notes: string }>) =>
+  update: (date: string, payload: Partial<{ steps: number }>) =>
     api.put<DayResponse>(`/days/${date}`, payload),
 
   addMeal: (date: string, payload: Record<string, unknown>, idempotencyKey?: string) =>

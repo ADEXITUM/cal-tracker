@@ -59,7 +59,7 @@ export const useDayStore = defineStore('day', () => {
     }
   }
 
-  async function updateDayEntry(payload: Partial<{ steps: number; sleepHours: number; mood: number; wellbeing: number; notes: string }>) {
+  async function updateDayEntry(payload: Partial<{ steps: number }>) {
     // Optimistic local update so steps reflect immediately in TDEE-related UI.
     if (data.value) {
       data.value.dayEntry = { ...(data.value.dayEntry ?? {}), ...payload } as DayResource['dayEntry']
@@ -193,18 +193,16 @@ export const useDayStore = defineStore('day', () => {
         })
         // Optimistic local copy so the UI reflects the queued action
         if (data.value) {
+          const num = (k: string) => payload[k] == null ? null : Number(payload[k])
           const optimistic: Measurement = {
             uuid: idempotencyKey,
             measuredAt: (payload.measuredAt as string) ?? new Date().toISOString(),
             weightKg: Number(payload.weightKg),
-            bodyFatPct: payload.bodyFatPct == null ? null : Number(payload.bodyFatPct),
-            muscleMassKg: payload.muscleMassKg == null ? null : Number(payload.muscleMassKg),
-            bodyWaterPct: null,
-            visceralFatLevel: null,
-            boneMassKg: null,
-            proteinPct: null,
-            heartRateBpm: null,
-            source: null,
+            bodyFatPct: num('bodyFatPct'),
+            waistCm:    num('waistCm'),
+            hipsCm:     num('hipsCm'),
+            chestCm:    num('chestCm'),
+            bicepsCm:   num('bicepsCm'),
           }
           data.value.measurements = [optimistic]
         }
@@ -239,7 +237,6 @@ export const useDayStore = defineStore('day', () => {
       name: payload.name as string,
       durationMin: payload.durationMin as number ?? null,
       kcalBurned: payload.kcalBurned as number ?? null,
-      notes: null,
     }
     if (data.value) data.value.workouts.push(optimistic)
 
@@ -312,7 +309,7 @@ export const useDayStore = defineStore('day', () => {
     currentDate, data, loading, error,
     setDate, fetch, goTo, goToToday, goToPrev, goToNext,
     addMeal, deleteMeal,
-    addMeasurement, deleteMeasurement,
+    addMeasurement, deleteMeasurement, updateDayEntry,
     addWorkout, deleteWorkout,
   }
 })

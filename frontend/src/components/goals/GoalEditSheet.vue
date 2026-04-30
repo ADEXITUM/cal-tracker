@@ -89,6 +89,30 @@ watch(() => props.modelValue, async (v) => {
 
 const previewMode = computed(() => classifyMode(goalDraft.value.kcal, tdeeKcal.value))
 
+/**
+ * Goals whose date range overlaps with this one. Each calendar day must
+ * belong to at most one goal — saving is disabled when overlaps exist.
+ * The user has to close conflicting goals first.
+ */
+const conflictingGoals = computed(() => {
+  if (!startDate.value) return []
+  const newEnd = noEndDate.value ? null : endDate.value
+  return goals.items.filter(g => {
+    if (props.goal && g.uuid === props.goal.uuid) return false
+    const gEnd = g.endDate
+    // Overlap test: !(g ends before we start || g starts after we end)
+    const gEndsBeforeUs = gEnd !== null && gEnd < startDate.value
+    const gStartsAfterUs = newEnd !== null && g.startDate > newEnd
+    return !(gEndsBeforeUs || gStartsAfterUs)
+  })
+})
+
+const hasConflict = computed(() => conflictingGoals.value.length > 0)
+
+function formatShortDate(iso: string): string {
+  return new Date(iso + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
+}
+
 async function save() {
   saving.value = true
   error.value = ''
@@ -168,6 +192,22 @@ void auth // keep import for later if needed
         Без срока (открытая цель)
       </label>
 
+      <div
+        v-if="hasConflict"
+        class="text-xs p-3 rounded-[var(--radius-sm)] flex flex-col gap-1"
+        style="background: var(--color-red-soft); color: var(--color-text-2); border: 1px solid var(--color-red)"
+      >
+        <p style="color: var(--color-red); font-weight: 500">Цель перекрывается с другими</p>
+        <p class="mt-0.5" style="color: var(--color-text-2)">
+          На каждую дату может быть только одна цель. Сначала завершите или измените даты:
+        </p>
+        <ul class="flex flex-col gap-0.5 mt-1">
+          <li v-for="g in conflictingGoals" :key="g.uuid">
+            • {{ g.kcal }} ккал, {{ formatShortDate(g.startDate) }}—{{ g.endDate ? formatShortDate(g.endDate) : 'без срока' }}
+          </li>
+        </ul>
+      </div>
+
       <p v-if="error" class="text-sm" style="color: var(--color-red)">{{ error }}</p>
 
       <div class="flex gap-2">
@@ -180,7 +220,7 @@ void auth // keep import for later if needed
         >
           Закончить
         </AButton>
-        <AButton size="md" :loading="saving" class="flex-1" @click="save">
+        <AButton size="md" :loading="saving" :disabled="hasConflict" class="flex-1" @click="save">
           {{ goal ? 'Сохранить' : 'Создать' }}
         </AButton>
       </div>

@@ -13,17 +13,14 @@ class MeasurementResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'uuid'               => $this->uuid,
-            'measured_at'        => $this->measured_at?->toIso8601String(),
-            'weight_kg'          => (float) $this->weight_kg,
-            'body_fat_pct'       => $this->body_fat_pct ? (float) $this->body_fat_pct : null,
-            'muscle_mass_kg'     => $this->muscle_mass_kg ? (float) $this->muscle_mass_kg : null,
-            'body_water_pct'     => $this->body_water_pct ? (float) $this->body_water_pct : null,
-            'visceral_fat_level' => $this->visceral_fat_level,
-            'bone_mass_kg'       => $this->bone_mass_kg ? (float) $this->bone_mass_kg : null,
-            'protein_pct'        => $this->protein_pct ? (float) $this->protein_pct : null,
-            'heart_rate_bpm'     => $this->heart_rate_bpm,
-            'source'             => $this->source,
+            'uuid'         => $this->uuid,
+            'measured_at'  => $this->measured_at?->toIso8601String(),
+            'weight_kg'    => (float) $this->weight_kg,
+            'body_fat_pct' => $this->body_fat_pct !== null ? (float) $this->body_fat_pct : null,
+            'waist_cm'     => $this->waist_cm !== null ? (float) $this->waist_cm : null,
+            'hips_cm'      => $this->hips_cm !== null ? (float) $this->hips_cm : null,
+            'chest_cm'     => $this->chest_cm !== null ? (float) $this->chest_cm : null,
+            'biceps_cm'    => $this->biceps_cm !== null ? (float) $this->biceps_cm : null,
         ];
     }
 }

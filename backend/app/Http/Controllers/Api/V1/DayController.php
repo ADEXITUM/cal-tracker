@@ -89,11 +89,7 @@ class DayController extends Controller
         return [
             'date'      => $data['date'],
             'day_entry' => $data['day_entry'] ? [
-                'mood'        => $data['day_entry']->mood,
-                'wellbeing'   => $data['day_entry']->wellbeing,
-                'sleep_hours' => $data['day_entry']->sleep_hours,
-                'steps'       => $data['day_entry']->steps,
-                'notes'       => $data['day_entry']->notes,
+                'steps' => $data['day_entry']->steps,
             ] : null,
             'goal'         => $data['goal'] ? [
                 'uuid'       => $data['goal']->uuid,
@@ -120,10 +116,14 @@ class DayController extends Controller
                 'carbs_g'   => (float) $m->carbs_g,
             ]),
             'measurements' => $data['measurements']->map(fn ($m) => [
-                'uuid'        => $m->uuid,
-                'measured_at' => $m->measured_at?->toIso8601String(),
-                'weight_kg'   => (float) $m->weight_kg,
-                'body_fat_pct' => $m->body_fat_pct ? (float) $m->body_fat_pct : null,
+                'uuid'         => $m->uuid,
+                'measured_at'  => $m->measured_at?->toIso8601String(),
+                'weight_kg'    => (float) $m->weight_kg,
+                'body_fat_pct' => $m->body_fat_pct !== null ? (float) $m->body_fat_pct : null,
+                'waist_cm'     => $m->waist_cm !== null ? (float) $m->waist_cm : null,
+                'hips_cm'      => $m->hips_cm !== null ? (float) $m->hips_cm : null,
+                'chest_cm'     => $m->chest_cm !== null ? (float) $m->chest_cm : null,
+                'biceps_cm'    => $m->biceps_cm !== null ? (float) $m->biceps_cm : null,
             ]),
             'workouts'  => $data['workouts']->map(fn ($w) => [
                 'uuid'         => $w->uuid,

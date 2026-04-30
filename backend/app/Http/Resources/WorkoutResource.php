@@ -17,7 +17,6 @@ class WorkoutResource extends JsonResource
             'name'         => $this->name,
             'duration_min' => $this->duration_min,
             'kcal_burned'  => $this->kcal_burned,
-            'notes'        => $this->notes,
         ];
     }
 }

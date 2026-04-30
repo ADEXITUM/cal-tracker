@@ -22,11 +22,4 @@ class GoalResolver
             ->first();
     }
 
-    public static function closeOpenGoal(User $user, Carbon $newStartDate): void
-    {
-        Goal::where('user_id', $user->id)
-            ->whereNull('end_date')
-            ->where('start_date', '<', $newStartDate->toDateString())
-            ->update(['end_date' => $newStartDate->subDay()->toDateString()]);
-    }
 }

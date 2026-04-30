@@ -21,13 +21,10 @@ class Measurement extends Model
         'measured_at',
         'weight_kg',
         'body_fat_pct',
-        'muscle_mass_kg',
-        'body_water_pct',
-        'visceral_fat_level',
-        'bone_mass_kg',
-        'protein_pct',
-        'heart_rate_bpm',
-        'source',
+        'waist_cm',
+        'hips_cm',
+        'chest_cm',
+        'biceps_cm',
     ];
 
     protected static function booted(): void
@@ -38,15 +35,13 @@ class Measurement extends Model
     protected function casts(): array
     {
         return [
-            'measured_at'       => 'datetime',
-            'weight_kg'         => 'float',
-            'body_fat_pct'      => 'float',
-            'muscle_mass_kg'    => 'float',
-            'body_water_pct'    => 'float',
-            'visceral_fat_level' => 'integer',
-            'bone_mass_kg'      => 'float',
-            'protein_pct'       => 'float',
-            'heart_rate_bpm'    => 'integer',
+            'measured_at'  => 'datetime',
+            'weight_kg'    => 'float',
+            'body_fat_pct' => 'float',
+            'waist_cm'     => 'float',
+            'hips_cm'      => 'float',
+            'chest_cm'     => 'float',
+            'biceps_cm'    => 'float',
         ];
     }
 
