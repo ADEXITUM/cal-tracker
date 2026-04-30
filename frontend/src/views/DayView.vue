@@ -198,9 +198,9 @@ const sprintChip = computed(() => {
           <div v-else class="flex flex-col divide-y" style="border-color: var(--color-border)">
             <div v-for="meal in day.data.meals" :key="meal.uuid" class="flex items-center justify-between py-2.5">
               <div>
-                <p class="text-sm font-medium" style="color: var(--color-text)">{{ meal.name }}</p>
+                <p class="text-sm font-medium" style="color: var(--color-text)">{{ meal.name ?? '—' }}</p>
                 <p class="text-xs" style="color: var(--color-text-3)">
-                  {{ meal.slot }} · {{ meal.grams ? `${meal.grams} г · ` : '' }}{{ meal.kcal }} ккал
+                  {{ meal.slot }} · {{ meal.grams ? `${meal.grams} г · ` : '' }}{{ meal.kcal || 0 }} ккал
                 </p>
               </div>
               <button class="p-1 text-xs" style="color: var(--color-text-3)" @click="day.deleteMeal(meal.uuid)">✕</button>
@@ -209,20 +209,45 @@ const sprintChip = computed(() => {
         </div>
       </ACard>
 
-      <!-- Measurements -->
+      <!-- Measurements (single per day, editable) -->
       <ACard>
         <div class="p-4">
-          <div class="mb-3">
-            <p class="text-sm font-semibold" style="color: var(--color-text)">Замеры</p>
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-sm font-semibold" style="color: var(--color-text)">Замеры дня</p>
+            <button
+              v-if="day.data.measurements.length > 0"
+              class="text-xs"
+              style="color: var(--color-accent)"
+              @click="showAddMeasurement = true"
+            >Изменить</button>
           </div>
-          <div v-if="day.data.measurements.length === 0" class="text-sm py-2" style="color: var(--color-text-3)">Нет замеров</div>
-          <div v-else class="flex flex-col gap-2">
-            <div v-for="m in day.data.measurements" :key="m.uuid" class="flex items-center justify-between">
-              <div>
-                <span class="font-mono text-lg font-light" style="color: var(--color-text)">{{ m.weightKg }} кг</span>
-                <span v-if="m.bodyFatPct" class="text-xs ml-2" style="color: var(--color-text-3)">{{ m.bodyFatPct }}% жира</span>
-              </div>
-              <button class="p-1 text-xs" style="color: var(--color-text-3)" @click="day.deleteMeasurement(m.uuid)">✕</button>
+          <div v-if="day.data.measurements.length === 0 && (day.data.dayEntry?.steps ?? 0) === 0" class="text-sm py-1" style="color: var(--color-text-3)">
+            Нет замеров на этот день
+          </div>
+          <div v-else class="flex flex-wrap gap-x-4 gap-y-2">
+            <div v-if="day.data.measurements[0]?.weightKg" class="flex items-baseline gap-1.5">
+              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
+                {{ day.data.measurements[0].weightKg }}
+              </span>
+              <span class="text-xs" style="color: var(--color-text-3)">кг</span>
+            </div>
+            <div v-if="day.data.measurements[0]?.bodyFatPct" class="flex items-baseline gap-1.5">
+              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
+                {{ day.data.measurements[0].bodyFatPct }}
+              </span>
+              <span class="text-xs" style="color: var(--color-text-3)">% жира</span>
+            </div>
+            <div v-if="day.data.measurements[0]?.muscleMassKg" class="flex items-baseline gap-1.5">
+              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
+                {{ day.data.measurements[0].muscleMassKg }}
+              </span>
+              <span class="text-xs" style="color: var(--color-text-3)">кг мышц</span>
+            </div>
+            <div v-if="day.data.dayEntry?.steps" class="flex items-baseline gap-1.5">
+              <span class="font-mono text-xl font-light" style="color: var(--color-text)">
+                {{ day.data.dayEntry.steps.toLocaleString('ru-RU') }}
+              </span>
+              <span class="text-xs" style="color: var(--color-text-3)">шагов</span>
             </div>
           </div>
         </div>

@@ -67,13 +67,18 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout(): Promise<void> {
     const user = currentUser.value
+    const token = currentToken.value
     currentUser.value = null
     currentToken.value = null
     if (user) {
       savedAccounts.value = savedAccounts.value.filter(a => a.uuid !== user.uuid)
       _persistAccounts()
     }
-    try { await authApi.logout() } catch { /* ignore — token already cleared */ }
+    // Only hit the server if we actually had a token; otherwise the 401
+    // response would re-trigger onUnauthorized → logout() recursively.
+    if (token) {
+      try { await authApi.logout() } catch { /* ignore */ }
+    }
   }
 
   async function switchTo(uuid: string): Promise<void> {

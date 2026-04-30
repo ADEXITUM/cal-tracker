@@ -10,7 +10,7 @@ import BarChart from '@/components/charts/BarChart.vue'
 import ComparisonCard from '@/components/stats/ComparisonCard.vue'
 import DayHeatmap from '@/components/charts/DayHeatmap.vue'
 
-type Tab = 'calendar' | 'weight' | 'kcal' | 'composition' | 'activity'
+type Tab = 'calendar' | 'weight' | 'kcal' | 'composition'
 type Period = 7 | 30 | 90 | 365
 
 const router = useRouter()
@@ -19,20 +19,13 @@ const period = ref<Period>(30)
 const summary = ref<StatsSummary | null>(null)
 const series = ref<Record<string, StatsSeries>>({})
 const loading = ref(false)
+const seriesLoading = ref(false)
 const calendarDays = ref<DaySummary[]>([])
-const calendarMetric = ref<'kcal' | 'tracked'>('kcal')
-
 const tabOptions: { value: Tab; label: string }[] = [
   { value: 'calendar', label: 'Календарь' },
   { value: 'weight', label: 'Вес' },
   { value: 'kcal', label: 'КБЖУ' },
   { value: 'composition', label: 'Состав' },
-  { value: 'activity', label: 'Активность' },
-]
-
-const calendarMetricOptions: { value: 'kcal' | 'tracked'; label: string }[] = [
-  { value: 'kcal', label: 'Δ от цели' },
-  { value: 'tracked', label: 'Записано' },
 ]
 
 const periodOptions: { value: Period; label: string }[] = [
@@ -56,6 +49,7 @@ async function loadSeries(metric: StatsMetric) {
 
 async function reload() {
   loading.value = true
+  seriesLoading.value = true
   series.value = {}
   try {
     if (tab.value === 'calendar') {
@@ -68,21 +62,21 @@ async function reload() {
     }
   } finally {
     loading.value = false
+    seriesLoading.value = false
   }
 }
 
 async function loadForTab() {
   const metricsByTab: Record<Exclude<Tab, 'calendar'>, StatsMetric[]> = {
     weight:      ['weight'],
-    kcal:        ['kcal', 'protein_g', 'fat_g', 'carbs_g'],
-    composition: ['body_fat_pct', 'muscle_mass_kg'],
-    activity:    ['steps'],
+    kcal:        ['kcal', 'protein_g', 'fat_g', 'carbs_g', 'steps'],
+    composition: ['body_fat_pct'],
   }
   if (tab.value === 'calendar') return
   await Promise.all(metricsByTab[tab.value].map(loadSeries))
 }
 
-function pickDay(date: string) {
+function navigateToDay(date: string) {
   router.push({ name: 'day', params: { date } })
 }
 
@@ -113,16 +107,9 @@ onMounted(() => reload())
 
       <!-- Calendar tab -->
       <template v-else-if="tab === 'calendar'">
-        <ASegmented v-model="calendarMetric" :options="calendarMetricOptions" />
         <ACard>
           <div class="p-4">
-            <DayHeatmap :days="calendarDays" :weeks="calendarWeeks" :metric="calendarMetric" @pick="pickDay" />
-            <div v-if="calendarMetric === 'kcal'" class="mt-4 flex flex-wrap items-center gap-3 text-xs" style="color: var(--color-text-3)">
-              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm" style="background: var(--color-green)" /> ±100</span>
-              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm" style="background: var(--color-accent)" /> ±250</span>
-              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm" style="background: var(--color-yellow)" /> ±500</span>
-              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm" style="background: var(--color-red)" /> &gt;500</span>
-            </div>
+            <DayHeatmap :days="calendarDays" :weeks="calendarWeeks" @navigate="navigateToDay" />
           </div>
         </ACard>
       </template>
@@ -147,7 +134,9 @@ onMounted(() => reload())
         <ACard>
           <div class="p-3">
             <p class="text-xs mb-2" style="color: var(--color-text-3)">График веса</p>
+            <div v-if="seriesLoading" class="h-60 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
             <LineChart
+              v-else
               :raw="series.weight?.points ?? []"
               :smoothed="series.weight?.rollingAvg7d ?? []"
               unit="кг"
@@ -182,25 +171,36 @@ onMounted(() => reload())
         <ACard>
           <div class="p-3">
             <p class="text-xs mb-2" style="color: var(--color-text-3)">Калории по дням</p>
-            <BarChart :points="series.kcal?.points ?? []" unit="ккал" />
+            <div v-if="seriesLoading" class="h-60 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
+            <BarChart v-else :points="series.kcal?.points ?? []" unit="ккал" />
           </div>
         </ACard>
         <ACard>
           <div class="p-3">
             <p class="text-xs mb-2" style="color: var(--color-text-3)">Белки</p>
-            <BarChart :points="series.protein_g?.points ?? []" unit="г" :height="180" />
+            <div v-if="seriesLoading" class="h-44 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
+            <BarChart v-else :points="series.protein_g?.points ?? []" unit="г" :height="180" />
           </div>
         </ACard>
         <ACard>
           <div class="p-3">
             <p class="text-xs mb-2" style="color: var(--color-text-3)">Жиры</p>
-            <BarChart :points="series.fat_g?.points ?? []" unit="г" :height="180" />
+            <div v-if="seriesLoading" class="h-44 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
+            <BarChart v-else :points="series.fat_g?.points ?? []" unit="г" :height="180" />
           </div>
         </ACard>
         <ACard>
           <div class="p-3">
             <p class="text-xs mb-2" style="color: var(--color-text-3)">Углеводы</p>
-            <BarChart :points="series.carbs_g?.points ?? []" unit="г" :height="180" />
+            <div v-if="seriesLoading" class="h-44 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
+            <BarChart v-else :points="series.carbs_g?.points ?? []" unit="г" :height="180" />
+          </div>
+        </ACard>
+        <ACard>
+          <div class="p-3">
+            <p class="text-xs mb-2" style="color: var(--color-text-3)">Шаги по дням</p>
+            <div v-if="seriesLoading" class="h-44 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
+            <BarChart v-else :points="series.steps?.points ?? []" unit="шагов" :height="180" />
           </div>
         </ACard>
       </template>
@@ -217,37 +217,13 @@ onMounted(() => reload())
         <ACard>
           <div class="p-3">
             <p class="text-xs mb-2" style="color: var(--color-text-3)">% жира</p>
+            <div v-if="seriesLoading" class="h-60 animate-pulse rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)" />
             <LineChart
+              v-else
               :raw="series.body_fat_pct?.points ?? []"
               :smoothed="series.body_fat_pct?.rollingAvg7d ?? []"
               unit="%"
             />
-          </div>
-        </ACard>
-        <ACard>
-          <div class="p-3">
-            <p class="text-xs mb-2" style="color: var(--color-text-3)">Мышечная масса</p>
-            <LineChart
-              :raw="series.muscle_mass_kg?.points ?? []"
-              :smoothed="series.muscle_mass_kg?.rollingAvg7d ?? []"
-              unit="кг"
-            />
-          </div>
-        </ACard>
-      </template>
-
-      <!-- Activity tab -->
-      <template v-else>
-        <ACard>
-          <div class="px-4 py-3">
-            <p class="text-xs" style="color: var(--color-text-3)">Активных дней</p>
-            <p class="font-mono text-lg" style="color: var(--color-text)">{{ summary?.activeDaysPct ?? 0 }}%</p>
-          </div>
-        </ACard>
-        <ACard>
-          <div class="p-3">
-            <p class="text-xs mb-2" style="color: var(--color-text-3)">Шаги</p>
-            <BarChart :points="series.steps?.points ?? []" unit="шагов" />
           </div>
         </ACard>
       </template>

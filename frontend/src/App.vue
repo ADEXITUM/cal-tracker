@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import BottomNav from '@/components/layout/BottomNav.vue'
 import SyncIndicator from '@/components/layout/SyncIndicator.vue'
+import ToastContainer from '@/components/ui/ToastContainer.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -12,7 +13,12 @@ const showNav = computed(() => auth.isAuthenticated && route.meta.hideNav !== tr
 </script>
 
 <template>
-  <RouterView />
+  <RouterView v-slot="{ Component, route: r }">
+    <Transition name="page" mode="out-in">
+      <component :is="Component" :key="r.path" />
+    </Transition>
+  </RouterView>
   <SyncIndicator v-if="auth.isAuthenticated" />
   <BottomNav v-if="showNav" />
+  <ToastContainer />
 </template>

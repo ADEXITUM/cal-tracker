@@ -70,8 +70,8 @@ export default defineConfig(() => ({
         ],
       },
       manifest: {
-        name: 'DietTracker',
-        short_name: 'DietTracker',
+        name: 'Кал Трекер',
+        short_name: 'Cal Tracker',
         start_url: '/?source=pwa',
         display: 'standalone',
         theme_color: '#FAFAF7',

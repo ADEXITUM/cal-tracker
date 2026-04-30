@@ -5,7 +5,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
@@ -26,10 +26,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      APP_NAME: DietTracker
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost
+      APP_NAME: CalTracker
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-http://localhost}
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: 5432

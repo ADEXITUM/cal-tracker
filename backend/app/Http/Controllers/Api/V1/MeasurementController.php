@@ -20,6 +20,16 @@ class MeasurementController extends Controller
         $user  = $request->user();
         $entry = MealFactory::getOrCreateEntry($user, $date);
 
+        // Upsert: one measurement per day per user (overwrite same-day entry)
+        $existing = Measurement::where('user_id', $user->id)
+            ->where('day_entry_id', $entry->id)
+            ->first();
+
+        if ($existing) {
+            $existing->update($request->validated());
+            return response()->json(['data' => new MeasurementResource($existing)]);
+        }
+
         $measurement = Measurement::create([
             'day_entry_id' => $entry->id,
             'user_id'      => $user->id,

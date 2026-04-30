@@ -3,9 +3,17 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ACard from '@/components/ui/ACard.vue'
+import { useTheme } from '@/composables/useTheme'
 
 const router = useRouter()
 const auth = useAuthStore()
+const { preference: themePref, setTheme } = useTheme()
+
+const themeOptions = [
+  { value: 'auto', label: 'Авто' },
+  { value: 'light', label: 'Светлая' },
+  { value: 'dark', label: 'Тёмная' },
+] as const
 
 const sections = [
   { label: 'Блюда', route: '/dishes', hint: 'Свои продукты и блюда' },
@@ -100,7 +108,29 @@ async function removeAccount(uuid: string) {
         + Добавить аккаунт
       </button>
 
+      <!-- Theme -->
       <div class="mt-3 flex flex-col gap-2">
+        <p class="text-xs px-1" style="color: var(--color-text-3)">Оформление</p>
+        <ACard>
+          <div class="px-4 py-3 flex items-center justify-between gap-3">
+            <p class="text-sm font-medium" style="color: var(--color-text)">Тема</p>
+            <div class="flex gap-1">
+              <button
+                v-for="opt in themeOptions"
+                :key="opt.value"
+                type="button"
+                class="text-xs px-2.5 py-1 rounded-[var(--radius-sm)] transition-colors"
+                :style="themePref === opt.value
+                  ? 'background: var(--color-accent); color: #fff'
+                  : 'background: var(--color-surface-2); color: var(--color-text-2)'"
+                @click="setTheme(opt.value)"
+              >{{ opt.label }}</button>
+            </div>
+          </div>
+        </ACard>
+      </div>
+
+      <div class="mt-2 flex flex-col gap-2">
         <ACard
           v-for="s in sections"
           :key="s.route"
@@ -126,7 +156,7 @@ async function removeAccount(uuid: string) {
       </button>
 
       <p class="text-xs text-center mt-4" style="color: var(--color-text-3)">
-        Тёмная тема — Phase 5
+        Cal Tracker — v1.0
       </p>
     </div>
   </div>

@@ -12,6 +12,8 @@ const props = defineProps<{
 
 const accentColor = '#5B8DEF'
 
+const hasData = computed(() => props.raw.some(p => p.value !== null))
+
 const series = computed(() => {
   const out: { name: string; data: { x: number; y: number | null }[]; color?: string }[] = [
     {
@@ -55,8 +57,9 @@ const options = computed(() => ({
   grid: { borderColor: 'var(--color-border)', strokeDashArray: 3 },
   legend: { show: false },
   tooltip: {
-    theme: 'light',
+    theme: 'dark',
     x: { format: 'd MMM yyyy' },
+    style: { fontSize: '12px' },
   },
   noData: {
     text: 'Нет данных',
@@ -66,7 +69,11 @@ const options = computed(() => ({
 </script>
 
 <template>
+  <div v-if="!hasData" class="flex items-center justify-center text-sm" :style="{ height: `${height ?? 240}px`, color: 'var(--color-text-3)' }">
+    Нет данных за период
+  </div>
   <VueApexCharts
+    v-else
     type="line"
     :height="height ?? 240"
     :options="options"

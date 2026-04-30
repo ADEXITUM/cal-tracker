@@ -12,6 +12,8 @@ const props = defineProps<{
 
 const accentColor = '#5B8DEF'
 
+const hasData = computed(() => props.points.some(p => p.value !== null && p.value !== 0))
+
 const series = computed(() => [{
   name: 'Значение',
   data: props.points.map(p => ({ x: new Date(p.date + 'T12:00:00').getTime(), y: p.value })),
@@ -43,8 +45,9 @@ const options = computed(() => ({
   grid: { borderColor: 'var(--color-border)', strokeDashArray: 3 },
   legend: { show: false },
   tooltip: {
-    theme: 'light',
+    theme: 'dark',
     x: { format: 'd MMM yyyy' },
+    style: { fontSize: '12px' },
   },
   annotations: props.goal ? {
     yaxis: [{
@@ -65,7 +68,11 @@ const options = computed(() => ({
 </script>
 
 <template>
+  <div v-if="!hasData" class="flex items-center justify-center text-sm" :style="{ height: `${height ?? 240}px`, color: 'var(--color-text-3)' }">
+    Нет данных за период
+  </div>
   <VueApexCharts
+    v-else
     type="bar"
     :height="height ?? 240"
     :options="options"

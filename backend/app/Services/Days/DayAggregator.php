@@ -44,7 +44,11 @@ class DayAggregator
         }
 
         $meals = $entry ? $entry->meals : collect();
-        $measurements = $entry ? $entry->measurements : collect();
+        // Only the latest measurement per day is shown — older ones may exist as
+        // legacy data but the canonical "weight today" is the most recent one.
+        $measurements = $entry
+            ? collect([$entry->measurements->sortByDesc('measured_at')->first()])->filter()->values()
+            : collect();
         $workouts = $entry ? $entry->workouts : collect();
 
         $totals = [

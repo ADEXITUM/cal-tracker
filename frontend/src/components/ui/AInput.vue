@@ -6,7 +6,7 @@ defineProps<{
   type?: string
   placeholder?: string
   autocomplete?: string
-  inputmode?: string
+  inputmode?: 'none' | 'text' | 'decimal' | 'numeric' | 'tel' | 'search' | 'email' | 'url'
   disabled?: boolean
 }>()
 

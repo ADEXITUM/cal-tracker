@@ -55,7 +55,7 @@ export interface Measurement {
   boneMassKg: number | null
   proteinPct: number | null
   heartRateBpm: number | null
-  source: string
+  source: string | null
 }
 
 export interface Workout {

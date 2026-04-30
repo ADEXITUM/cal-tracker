@@ -57,20 +57,26 @@ class StatsAggregator
     /** @param \Illuminate\Database\Eloquent\Collection<int, Measurement> $measurements */
     private static function weightSummary($measurements): array
     {
-        if ($measurements->isEmpty()) {
+        $withWeight = $measurements->filter(fn ($m) => $m->weight_kg !== null);
+        if ($withWeight->isEmpty()) {
             return ['start' => null, 'end' => null, 'delta_kg' => null, 'trend_kg_per_week' => null];
         }
-        $first = $measurements->first();
-        $last = $measurements->last();
+        // One per day: keep the last measurement of each day
+        $byDay = $withWeight->groupBy(fn ($m) => $m->measured_at->toDateString());
+        $dailyLast = $byDay->map(fn ($group) => $group->sortBy('measured_at')->last());
+        $sorted = $dailyLast->sortKeys();
+
+        $first = $sorted->first();
+        $last  = $sorted->last();
         $start = (float) $first->weight_kg;
-        $end = (float) $last->weight_kg;
+        $end   = (float) $last->weight_kg;
 
         // Linear regression slope on the whole range
         $slopePerDay = self::slopePerDay(
-            $measurements->map(fn ($m) => [
+            $sorted->map(fn ($m) => [
                 'ts' => $m->measured_at->timestamp,
                 'v'  => (float) $m->weight_kg,
-            ])->toArray(),
+            ])->values()->toArray(),
         );
         $trend = $slopePerDay !== null ? round($slopePerDay * 7, 2) : null;
 
@@ -253,7 +259,7 @@ class StatsAggregator
             $sumX += $x; $sumY += $y; $sumXY += $x * $y; $sumXX += $x * $x;
         }
         $denom = $n * $sumXX - $sumX * $sumX;
-        if ($denom == 0.0) return null;
+        if (abs($denom) < 1e-9) return null;
         return ($n * $sumXY - $sumX * $sumY) / $denom;
     }
 }

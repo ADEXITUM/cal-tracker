@@ -4,8 +4,13 @@ import router from '@/router'
 import { useAuthStore } from '@/stores/auth'
 import { useDayStore } from '@/stores/day'
 import { configureOfflineQueue } from '@/composables/useOfflineQueue'
+import { useTheme } from '@/composables/useTheme'
+import { useToast } from '@/composables/useToast'
 import './style.css'
 import App from './App.vue'
+
+// Apply saved theme before first paint to avoid flash
+useTheme()
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -23,9 +28,9 @@ configureOfflineQueue({
     const day = useDayStore()
     void day.fetch()
   },
-  onTerminalFailure: (_action, message) => {
-    // Surface a console error for now; toast system arrives in Phase 5
-    console.error('[offline-queue] permanent failure:', message)
+  onTerminalFailure: (_action, _message) => {
+    const { show } = useToast()
+    show('Действие не удалось отправить на сервер', 'error', 5000)
   },
 })
 

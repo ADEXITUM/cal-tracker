@@ -1,5 +1,8 @@
-# Production — replace :80 with your domain for auto-HTTPS
+# To enable HTTPS: replace ":80" below with your domain (e.g. "diet.example.com").
+# Caddy will obtain a Let's Encrypt certificate automatically.
 :80 {
+    encode zstd gzip
+
     header {
         X-Frame-Options DENY
         X-Content-Type-Options nosniff

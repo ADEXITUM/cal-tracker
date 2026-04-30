@@ -5,6 +5,7 @@ import { NetworkError } from '@/api/client'
 import { enqueue as enqueueOffline } from '@/composables/useOfflineQueue'
 import { readCachedDay, writeCachedDay } from '@/lib/dayCache'
 import { useAuthStore } from '@/stores/auth'
+import { useDishesStore } from '@/stores/dishes'
 import type { DayResource, Meal, Measurement, Workout } from '@/types/api'
 
 function uuid(): string {
@@ -58,19 +59,62 @@ export const useDayStore = defineStore('day', () => {
     }
   }
 
+  async function updateDayEntry(payload: Partial<{ steps: number; sleepHours: number; mood: number; wellbeing: number; notes: string }>) {
+    // Optimistic local update so steps reflect immediately in TDEE-related UI.
+    if (data.value) {
+      data.value.dayEntry = { ...(data.value.dayEntry ?? {}), ...payload } as DayResource['dayEntry']
+    }
+    try {
+      await daysApi.update(currentDate.value, payload)
+      // Refetch to recompute TDEE/mode (steps affect total burn).
+      await fetch()
+    } catch (e) {
+      if (e instanceof NetworkError) {
+        await enqueueOffline({
+          id: uuid(),
+          method: 'PUT',
+          url: `/days/${currentDate.value}`,
+          body: snakeify(payload),
+        })
+      } else {
+        throw e
+      }
+    }
+  }
+
   async function addMeal(payload: Record<string, unknown>) {
     const idempotencyKey = uuid()
+
+    // For dish-based meals compute macros optimistically from the dish store
+    let kcal = Number(payload.kcal ?? 0)
+    let proteinG = Number(payload.proteinG ?? 0)
+    let fatG = Number(payload.fatG ?? 0)
+    let carbsG = Number(payload.carbsG ?? 0)
+    let name = payload.name as string ?? null
+    if (payload.dishUuid && payload.grams) {
+      const dishStore = useDishesStore()
+      const dish = dishStore.items.find(d => d.uuid === payload.dishUuid)
+      if (dish) {
+        const g = Number(payload.grams)
+        kcal    = Math.round(dish.kcalPer100g    * g / 100)
+        proteinG = Math.round(dish.proteinPer100g * g / 100)
+        fatG    = Math.round(dish.fatPer100g     * g / 100)
+        carbsG  = Math.round(dish.carbsPer100g   * g / 100)
+        name    = dish.name
+      }
+    }
+
     const optimistic: Meal = {
       uuid: idempotencyKey,
       slot: payload.slot as Meal['slot'],
       eatenAt: payload.eatenAt as string ?? new Date().toISOString(),
       dishUuid: (payload.dishUuid as string) ?? null,
       grams: payload.grams as number ?? null,
-      name: payload.name as string ?? null,
-      kcal: Number(payload.kcal ?? 0),
-      proteinG: Number(payload.proteinG ?? 0),
-      fatG: Number(payload.fatG ?? 0),
-      carbsG: Number(payload.carbsG ?? 0),
+      name,
+      kcal,
+      proteinG,
+      fatG,
+      carbsG,
     }
     if (data.value) {
       data.value.meals.push(optimistic)
@@ -131,27 +175,13 @@ export const useDayStore = defineStore('day', () => {
   }
 
   async function addMeasurement(payload: Record<string, unknown>) {
+    // Server upserts (one measurement per day), so the returned record may have
+    // an existing uuid — we replace the day's measurements with [response].
     const idempotencyKey = uuid()
-    const optimistic: Measurement = {
-      uuid: idempotencyKey,
-      measuredAt: payload.measuredAt as string ?? new Date().toISOString(),
-      weightKg: Number(payload.weightKg),
-      bodyFatPct: payload.bodyFatPct == null ? null : Number(payload.bodyFatPct),
-      muscleMassKg: null,
-      bodyWaterPct: null,
-      visceralFatLevel: null,
-      boneMassKg: null,
-      proteinPct: null,
-      heartRateBpm: null,
-      source: null,
-    }
-    if (data.value) data.value.measurements.push(optimistic)
-
     try {
       const res = await daysApi.addMeasurement(currentDate.value, payload, idempotencyKey)
       if (data.value) {
-        const idx = data.value.measurements.findIndex(m => m.uuid === idempotencyKey)
-        if (idx >= 0) data.value.measurements.splice(idx, 1, res.data)
+        data.value.measurements = [res.data]
       }
     } catch (e) {
       if (e instanceof NetworkError) {
@@ -161,10 +191,24 @@ export const useDayStore = defineStore('day', () => {
           url: `/days/${currentDate.value}/measurements`,
           body: snakeify(payload),
         })
-      } else {
+        // Optimistic local copy so the UI reflects the queued action
         if (data.value) {
-          data.value.measurements = data.value.measurements.filter(m => m.uuid !== idempotencyKey)
+          const optimistic: Measurement = {
+            uuid: idempotencyKey,
+            measuredAt: (payload.measuredAt as string) ?? new Date().toISOString(),
+            weightKg: Number(payload.weightKg),
+            bodyFatPct: payload.bodyFatPct == null ? null : Number(payload.bodyFatPct),
+            muscleMassKg: payload.muscleMassKg == null ? null : Number(payload.muscleMassKg),
+            bodyWaterPct: null,
+            visceralFatLevel: null,
+            boneMassKg: null,
+            proteinPct: null,
+            heartRateBpm: null,
+            source: null,
+          }
+          data.value.measurements = [optimistic]
         }
+      } else {
         throw e
       }
     }
