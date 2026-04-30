@@ -12,7 +12,7 @@ export class NetworkError extends Error {
 }
 
 function toCamel(s: string): string {
-  return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
+  return s.replace(/_([a-z0-9])/g, (_, c: string) => (/[0-9]/.test(c) ? c : c.toUpperCase()))
 }
 
 function toSnake(s: string): string {
