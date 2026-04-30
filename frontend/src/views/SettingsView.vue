@@ -17,6 +17,7 @@ const themeOptions = [
 
 const sections = [
   { label: 'Блюда', route: '/dishes', hint: 'Свои продукты и блюда' },
+  { label: 'Как это работает', route: '/settings/how-it-works', hint: 'Расход, цель, режимы — что откуда' },
 ] as const
 
 const otherAccounts = computed(() =>

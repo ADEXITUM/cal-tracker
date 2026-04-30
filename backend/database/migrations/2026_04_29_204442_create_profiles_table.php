@@ -16,7 +16,6 @@ return new class extends Migration
             $table->enum('gender', ['male', 'female']);
             $table->date('birth_date');
             $table->smallInteger('height_cm');
-            $table->enum('activity_level', ['sedentary', 'light', 'moderate', 'active']);
             $table->timestamps();
         });
     }

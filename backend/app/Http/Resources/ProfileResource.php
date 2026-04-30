@@ -19,11 +19,10 @@ class ProfileResource extends JsonResource
         }
 
         return [
-            'gender'         => $this->gender,
-            'birth_date'     => $this->birth_date?->toDateString(),
-            'height_cm'      => $this->height_cm,
-            'activity_level' => $this->activity_level,
-            'tdee_kcal'      => $tdee,
+            'gender'     => $this->gender,
+            'birth_date' => $this->birth_date?->toDateString(),
+            'height_cm'  => $this->height_cm,
+            'tdee_kcal'  => $tdee,
         ];
     }
 }

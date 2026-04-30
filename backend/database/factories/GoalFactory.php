@@ -19,6 +19,7 @@ class GoalFactory extends Factory
             'user_id' => User::factory(),
             'start_date' => now()->toDateString(),
             'end_date' => null,
+            'type' => 'maintenance',
             'kcal' => 1700,
             'protein_g' => 150,
             'fat_g' => 60,

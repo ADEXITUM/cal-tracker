@@ -27,10 +27,9 @@ class ProfileTest extends TestCase
 
         $this->actingAs($user)
             ->putJson('/api/v1/profile', [
-                'gender'         => 'male',
-                'birth_date'     => '1992-05-15',
-                'height_cm'      => 180,
-                'activity_level' => 'sedentary',
+                'gender'     => 'male',
+                'birth_date' => '1992-05-15',
+                'height_cm'  => 180,
             ])
             ->assertSuccessful()
             ->assertJsonPath('data.gender', 'male')
@@ -43,22 +42,19 @@ class ProfileTest extends TestCase
     {
         $user = User::factory()->create();
         $user->profile()->create([
-            'gender'         => 'male',
-            'birth_date'     => '1992-05-15',
-            'height_cm'      => 180,
-            'activity_level' => 'sedentary',
+            'gender'     => 'male',
+            'birth_date' => '1992-05-15',
+            'height_cm'  => 180,
         ]);
 
         $this->actingAs($user)
             ->putJson('/api/v1/profile', [
-                'gender'         => 'male',
-                'birth_date'     => '1992-05-15',
-                'height_cm'      => 182,
-                'activity_level' => 'moderate',
+                'gender'     => 'male',
+                'birth_date' => '1992-05-15',
+                'height_cm'  => 182,
             ])
             ->assertOk()
-            ->assertJsonPath('data.height_cm', 182)
-            ->assertJsonPath('data.activity_level', 'moderate');
+            ->assertJsonPath('data.height_cm', 182);
     }
 
     public function test_profile_validates_fields(): void
@@ -67,13 +63,12 @@ class ProfileTest extends TestCase
 
         $this->actingAs($user)
             ->putJson('/api/v1/profile', [
-                'gender'         => 'robot',
-                'birth_date'     => 'not-a-date',
-                'height_cm'      => 50,
-                'activity_level' => 'ultra',
+                'gender'     => 'robot',
+                'birth_date' => 'not-a-date',
+                'height_cm'  => 50,
             ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['gender', 'birth_date', 'height_cm', 'activity_level']);
+            ->assertJsonValidationErrors(['gender', 'birth_date', 'height_cm']);
     }
 
     public function test_profile_requires_auth(): void
@@ -87,13 +82,11 @@ class ProfileTest extends TestCase
         $user1 = User::factory()->create();
         $user2 = User::factory()->create();
         $user2->profile()->create([
-            'gender'         => 'female',
-            'birth_date'     => '1990-01-01',
-            'height_cm'      => 165,
-            'activity_level' => 'light',
+            'gender'     => 'female',
+            'birth_date' => '1990-01-01',
+            'height_cm'  => 165,
         ]);
 
-        // user1 has no profile — gets 404, not user2's data
         $this->actingAs($user1)
             ->getJson('/api/v1/profile')
             ->assertNotFound();

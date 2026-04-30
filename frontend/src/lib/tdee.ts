@@ -2,32 +2,21 @@ import type { ActivityLevel, Gender } from '@/types/api'
 
 export interface TdeeBreakdown {
   bmr: number
-  activityKcal: number
+  baseKcal: number
   stepsKcal: number
   workoutsKcal: number
   total: number
 }
 
-const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
-  sedentary: 1.2,
-  light: 1.375,
-  moderate: 1.55,
-  active: 1.725,
-}
+/** Sedentary BMR multiplier — covers sleep + basic life without intentional walking/training. */
+export const BASE_MULTIPLIER = 1.2
 
-const STEPS_COEFFICIENT: Record<ActivityLevel, number> = {
-  sedentary: 1.0,
-  light: 0.7,
-  moderate: 0.4,
-  active: 0.2,
-}
+/** kcal per step per kg of bodyweight (rough average for walking pace). */
+export const STEP_KCAL_PER_KG = 0.0005
 
-/** Rough kcal burned by walking `steps` for someone of `weightKg`,
- *  net of the baseline activity already accounted for in the multiplier
- *  (so "couch potato + 8k steps" gets a bigger bonus than "active + 8k steps"). */
-export function stepsKcal(steps: number, weightKg: number, activityLevel: ActivityLevel): number {
+export function stepsKcal(steps: number, weightKg: number): number {
   if (!steps || steps <= 0) return 0
-  return Math.round(steps * weightKg * 0.0005 * STEPS_COEFFICIENT[activityLevel])
+  return Math.round(steps * weightKg * STEP_KCAL_PER_KG)
 }
 
 function ageFromBirthDate(birthDate: string): number {
@@ -39,29 +28,63 @@ function ageFromBirthDate(birthDate: string): number {
   return age
 }
 
-export function computeTdee(input: {
+export function bmr(input: {
   gender: Gender
   birthDate: string
   heightCm: number
-  activityLevel: ActivityLevel
   weightKg: number
-  steps?: number | null
-  workoutsKcal?: number
-}): TdeeBreakdown {
+}): number {
   const age = ageFromBirthDate(input.birthDate)
-  const bmr = Math.round(
+  return Math.round(
     input.gender === 'male'
       ? 10 * input.weightKg + 6.25 * input.heightCm - 5 * age + 5
       : 10 * input.weightKg + 6.25 * input.heightCm - 5 * age - 161,
   )
+}
 
-  const mult = ACTIVITY_MULTIPLIER[input.activityLevel]
-  const activityKcal = Math.round(bmr * (mult - 1))
-
-  const stepsKcalVal = stepsKcal(input.steps ?? 0, input.weightKg, input.activityLevel)
-
+export function computeTdee(input: {
+  gender: Gender
+  birthDate: string
+  heightCm: number
+  weightKg: number
+  steps?: number | null
+  workoutsKcal?: number
+}): TdeeBreakdown {
+  const bmrVal = bmr(input)
+  const baseKcal = Math.round(bmrVal * BASE_MULTIPLIER)
+  const stepsKcalVal = stepsKcal(input.steps ?? 0, input.weightKg)
   const workoutsKcal = input.workoutsKcal ?? 0
-  const total = bmr + activityKcal + stepsKcalVal + workoutsKcal
+  const total = baseKcal + stepsKcalVal + workoutsKcal
 
-  return { bmr, activityKcal, stepsKcal: stepsKcalVal, workoutsKcal, total }
+  return { bmr: bmrVal, baseKcal, stepsKcal: stepsKcalVal, workoutsKcal, total }
+}
+
+/**
+ * Activity-level multipliers for the *goal calculator helper*.
+ * Used only when proposing a goal kcal value during goal creation —
+ * not stored on the profile, just helps the user pick a starting number.
+ */
+export const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
+  sedentary: 1.2,
+  light:     1.4,
+  moderate:  1.55,
+  active:    1.725,
+}
+
+export const ACTIVITY_LABEL: Record<ActivityLevel, string> = {
+  sedentary: 'Сидячая (без спорта)',
+  light:     'Лёгкая (1-2 трен/нед)',
+  moderate:  'Средняя (3-4 трен/нед)',
+  active:    'Высокая (5+ трен/нед)',
+}
+
+/** Estimate "average daily TDEE" for the goal calculator. */
+export function estimateAverageTdee(input: {
+  gender: Gender
+  birthDate: string
+  heightCm: number
+  weightKg: number
+  activityLevel: ActivityLevel
+}): number {
+  return Math.round(bmr(input) * ACTIVITY_MULTIPLIER[input.activityLevel])
 }

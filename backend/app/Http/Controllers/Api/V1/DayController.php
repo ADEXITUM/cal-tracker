@@ -11,7 +11,6 @@ use App\Models\DayEntry;
 use App\Services\Days\DayAggregator;
 use App\Services\Goals\GoalResolver;
 use App\Services\Modes\ModeClassifier;
-use App\Services\Tdee\TdeeCalculator;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,11 +64,7 @@ class DayController extends Controller
             ];
 
             $weightKg = $entry->measurements->sortByDesc('measured_at')->first()?->weight_kg;
-            $modeCode = null;
-            if ($goal && $user->profile && $weightKg) {
-                $tdee = TdeeCalculator::compute($user->profile, (float) $weightKg);
-                $modeCode = ModeClassifier::classify($goal->kcal, $tdee->total)->code;
-            }
+            $modeCode = $goal ? ModeClassifier::classify($goal->kcal, (float) $totals['kcal'])->code : null;
 
             return [
                 'date'           => $entry->date->toDateString(),
@@ -95,6 +90,7 @@ class DayController extends Controller
                 'uuid'       => $data['goal']->uuid,
                 'start_date' => $data['goal']->start_date?->toDateString(),
                 'end_date'   => $data['goal']->end_date?->toDateString(),
+                'type'       => $data['goal']->type,
                 'kcal'       => $data['goal']->kcal,
                 'protein_g'  => $data['goal']->protein_g,
                 'fat_g'      => $data['goal']->fat_g,

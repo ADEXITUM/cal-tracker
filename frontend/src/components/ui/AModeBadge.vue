@@ -5,12 +5,11 @@ defineProps<{ code: ModeCode; label: string; deltaKcal: number; clickable?: bool
 defineEmits<{ click: [] }>()
 
 const config: Record<ModeCode, { bg: string; text: string; icon: string }> = {
-  extreme_cut: { bg: 'var(--color-red-soft)',    text: 'var(--color-red)',    icon: '🔥' },
-  cut:         { bg: 'var(--color-red-soft)',    text: 'var(--color-red)',    icon: '↘' },
-  cut_lite:    { bg: 'var(--color-yellow-soft)', text: 'var(--color-yellow)', icon: '−' },
-  maintenance: { bg: 'var(--color-surface-2)',   text: 'var(--color-text-2)', icon: '=' },
-  light_bulk:  { bg: 'var(--color-green-soft)',  text: 'var(--color-green)',  icon: '+' },
-  bulk:        { bg: 'var(--color-green-soft)',  text: 'var(--color-green)',  icon: '↗' },
+  on_target: { bg: 'var(--color-accent-soft)', text: 'var(--color-accent)', icon: '✓' },
+  over:      { bg: 'var(--color-yellow-soft)', text: 'var(--color-yellow)', icon: '↑' },
+  far_over:  { bg: 'var(--color-red-soft)',    text: 'var(--color-red)',    icon: '↑↑' },
+  under:     { bg: 'var(--color-yellow-soft)', text: 'var(--color-yellow)', icon: '↓' },
+  far_under: { bg: 'var(--color-red-soft)',    text: 'var(--color-red)',    icon: '↓↓' },
 }
 </script>
 

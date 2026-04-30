@@ -10,12 +10,14 @@ import AModeBadge from '@/components/ui/AModeBadge.vue'
 import ACard from '@/components/ui/ACard.vue'
 import AButton from '@/components/ui/AButton.vue'
 import DayFab from '@/components/day/DayFab.vue'
+import DayBalanceCard from '@/components/day/DayBalanceCard.vue'
 import AddMealSheet from '@/components/add/AddMealSheet.vue'
 import AddMeasurementSheet from '@/components/add/AddMeasurementSheet.vue'
 import AddStepsSheet from '@/components/add/AddStepsSheet.vue'
 import AddWorkoutSheet from '@/components/add/AddWorkoutSheet.vue'
 import ModeExplainerModal from '@/components/day/ModeExplainerModal.vue'
 import DayInsights from '@/components/day/DayInsights.vue'
+import { GOAL_TYPE_LABEL } from '@/lib/modes'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,6 +28,8 @@ const showAddMeasurement = ref(false)
 const showAddSteps = ref(false)
 const showAddWorkout = ref(false)
 const showModeExplainer = ref(false)
+
+const activeTab = ref<'goal' | 'balance'>('goal')
 
 const prevDayData = ref<DayResource | null>(null)
 
@@ -139,21 +143,20 @@ const measurementCells = computed(() => {
 
 const sprintChip = computed(() => {
   const goal = day.data?.goal
-  const mode = day.data?.mode
-  if (!goal || !mode) return null
+  if (!goal) return null
 
   const today = new Date().toISOString().slice(0, 10)
   const isToday = dateParam.value === today
   const dayN = daysBetween(goal.startDate, dateParam.value) + 1
+  const typeLabel = GOAL_TYPE_LABEL[goal.type]
 
   if (goal.endDate) {
     const totalDays = daysBetween(goal.startDate, goal.endDate) + 1
-    if (isToday) return `${mode.label} · день ${dayN}/${totalDays}`
-    return `${mode.label} · ${formatShortDate(goal.startDate)} → ${formatShortDate(goal.endDate)} · день ${dayN}/${totalDays}`
+    if (isToday) return `${typeLabel} · день ${dayN}/${totalDays}`
+    return `${typeLabel} · ${formatShortDate(goal.startDate)} → ${formatShortDate(goal.endDate)} · день ${dayN}/${totalDays}`
   }
-  // Open-ended
-  if (isToday) return `${mode.label} · день ${dayN}`
-  return `${mode.label} · с ${formatShortDate(goal.startDate)} · день ${dayN}`
+  if (isToday) return `${typeLabel} · день ${dayN}`
+  return `${typeLabel} · с ${formatShortDate(goal.startDate)} · день ${dayN}`
 })
 </script>
 
@@ -171,6 +174,29 @@ const sprintChip = computed(() => {
       </button>
     </header>
 
+    <!-- Tabs -->
+    <div
+      class="sticky top-[49px] z-10 flex px-4 pt-2 pb-2 gap-1"
+      style="background: var(--color-bg); border-bottom: 1px solid var(--color-border)"
+    >
+      <button
+        type="button"
+        class="flex-1 py-2 text-sm rounded-[var(--radius-sm)] transition-colors"
+        :style="activeTab === 'goal'
+          ? 'background: var(--color-accent); color: white; font-weight: 600'
+          : 'background: var(--color-surface-2); color: var(--color-text-2)'"
+        @click="activeTab = 'goal'"
+      >Цель</button>
+      <button
+        type="button"
+        class="flex-1 py-2 text-sm rounded-[var(--radius-sm)] transition-colors"
+        :style="activeTab === 'balance'
+          ? 'background: var(--color-accent); color: white; font-weight: 600'
+          : 'background: var(--color-surface-2); color: var(--color-text-2)'"
+        @click="activeTab = 'balance'"
+      >Реальный баланс</button>
+    </div>
+
     <!-- Loading -->
     <div v-if="day.loading" class="flex flex-col gap-3 p-4">
       <div class="h-56 rounded-[var(--radius-md)] animate-pulse" style="background: var(--color-surface-2)" />
@@ -181,80 +207,91 @@ const sprintChip = computed(() => {
     <!-- Content -->
     <div v-else-if="day.data" class="flex flex-col gap-3 p-4 pb-24">
 
-      <!-- Kcal ring + mode -->
-      <ACard>
-        <div class="flex flex-col items-center py-6 gap-3">
-          <KcalRing
-            :current="day.data.totals.kcal"
-            :goal="day.data.goal?.kcal ?? 0"
-          />
-          <p
-            v-if="prevDayData && day.data.totals.kcal !== undefined"
-            class="text-xs"
-            :style="{
-              color: (day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0)) === 0
-                ? 'var(--color-text-3)'
-                : (day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0)) > 0
-                  ? 'var(--color-red)'
-                  : 'var(--color-accent)'
-            }"
-          >{{ fmtDelta(Math.round(day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0))) }} ккал vs вчера</p>
-          <AModeBadge
-            v-if="day.data.mode"
-            :code="day.data.mode.code"
-            :label="day.data.mode.label"
-            :delta-kcal="day.data.mode.deltaKcal"
-            clickable
-            @click="showModeExplainer = true"
-          />
-          <p v-if="sprintChip" class="text-xs" style="color: var(--color-text-3)">
-            {{ sprintChip }}
-          </p>
-        </div>
-      </ACard>
-
-      <!-- Macros -->
-      <div class="grid grid-cols-3 gap-2">
-        <ACard v-for="macro in macroCards" :key="macro.key">
-          <div class="px-3 py-3 text-center">
-            <p class="text-xs mb-1" style="color: var(--color-text-3)">{{ macro.label }}</p>
-            <p class="font-mono text-xl font-light leading-tight" style="color: var(--color-text)">
-              {{ macro.current }}
-            </p>
-            <p v-if="macro.goal" class="text-xs mt-0.5" style="color: var(--color-text-3)">
-              / {{ macro.goal }} г
-            </p>
+      <!-- TAB: Цель -->
+      <template v-if="activeTab === 'goal'">
+        <ACard>
+          <div class="flex flex-col items-center py-6 gap-3">
+            <KcalRing
+              :current="day.data.totals.kcal"
+              :goal="day.data.goal?.kcal ?? 0"
+            />
             <p
-              v-if="macro.delta !== null"
-              class="text-[10px] mt-0.5"
-              :style="{ color: macro.delta === 0 ? 'var(--color-text-3)' : macro.delta > 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
-            >{{ fmtDelta(macro.delta) }} г</p>
-            <div
-              v-if="macro.goal"
-              class="mt-2 h-1.5 rounded-full overflow-hidden"
-              style="background: var(--color-surface-2)"
-            >
-              <div
-                class="h-full rounded-full"
-                :style="{
-                  width: macro.percent + '%',
-                  background: macro.onTarget ? 'var(--color-accent)' : 'var(--color-text-3)',
-                  transition: 'width 400ms ease-out, background-color 200ms',
-                }"
-              />
-            </div>
+              v-if="prevDayData && day.data.totals.kcal !== undefined"
+              class="text-xs"
+              :style="{
+                color: (day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0)) === 0
+                  ? 'var(--color-text-3)'
+                  : (day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0)) > 0
+                    ? 'var(--color-red)'
+                    : 'var(--color-accent)'
+              }"
+            >{{ fmtDelta(Math.round(day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0))) }} ккал vs вчера</p>
+            <AModeBadge
+              v-if="day.data.mode"
+              :code="day.data.mode.code"
+              :label="day.data.mode.label"
+              :delta-kcal="day.data.mode.deltaKcal"
+              clickable
+              @click="showModeExplainer = true"
+            />
+            <p v-if="sprintChip" class="text-xs" style="color: var(--color-text-3)">
+              {{ sprintChip }}
+            </p>
           </div>
         </ACard>
-      </div>
 
-      <!-- Insights -->
+        <div class="grid grid-cols-3 gap-2">
+          <ACard v-for="macro in macroCards" :key="macro.key">
+            <div class="px-3 py-3 text-center">
+              <p class="text-xs mb-1" style="color: var(--color-text-3)">{{ macro.label }}</p>
+              <p class="font-mono text-xl font-light leading-tight" style="color: var(--color-text)">
+                {{ macro.current }}
+              </p>
+              <p v-if="macro.goal" class="text-xs mt-0.5" style="color: var(--color-text-3)">
+                / {{ macro.goal }} г
+              </p>
+              <p
+                v-if="macro.delta !== null"
+                class="text-[10px] mt-0.5"
+                :style="{ color: macro.delta === 0 ? 'var(--color-text-3)' : macro.delta > 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
+              >{{ fmtDelta(macro.delta) }} г</p>
+              <div
+                v-if="macro.goal"
+                class="mt-2 h-1.5 rounded-full overflow-hidden"
+                style="background: var(--color-surface-2)"
+              >
+                <div
+                  class="h-full rounded-full"
+                  :style="{
+                    width: macro.percent + '%',
+                    background: macro.onTarget ? 'var(--color-accent)' : 'var(--color-text-3)',
+                    transition: 'width 400ms ease-out, background-color 200ms',
+                  }"
+                />
+              </div>
+            </div>
+          </ACard>
+        </div>
+      </template>
+
+      <!-- TAB: Реальный баланс -->
+      <template v-else>
+        <DayBalanceCard
+          :tdee="day.data.tdee"
+          :totals="day.data.totals"
+          :day-entry="day.data.dayEntry"
+          :workouts="day.data.workouts"
+        />
+      </template>
+
+      <!-- Insights — visible on both tabs -->
       <DayInsights
         v-if="day.data.insights.length"
         :insights="day.data.insights"
         :date="dateParam"
       />
 
-      <!-- Meals -->
+      <!-- Meals — common to both tabs -->
       <ACard>
         <div class="p-4">
           <div class="mb-3">
@@ -277,7 +314,7 @@ const sprintChip = computed(() => {
         </div>
       </ACard>
 
-      <!-- Measurements (single per day, editable) -->
+      <!-- Measurements -->
       <ACard>
         <div class="p-4">
           <div class="flex items-center justify-between mb-3">
@@ -373,16 +410,13 @@ const sprintChip = computed(() => {
 
     </div>
 
-    <!-- Error -->
     <div v-else-if="day.error" class="flex flex-col items-center justify-center flex-1 gap-3 p-8">
       <p style="color: var(--color-text-2)">{{ day.error }}</p>
       <AButton @click="day.fetch()">Повторить</AButton>
     </div>
 
-    <!-- FAB -->
     <DayFab @add="openAdd" />
 
-    <!-- Sheets -->
     <AddMealSheet v-model="showAddMeal" />
     <AddMeasurementSheet v-model="showAddMeasurement" />
     <AddStepsSheet v-model="showAddSteps" />
@@ -390,8 +424,8 @@ const sprintChip = computed(() => {
     <ModeExplainerModal
       v-model="showModeExplainer"
       :mode="day.data?.mode ?? null"
-      :tdee="day.data?.tdee ?? null"
       :goal="day.data?.goal ?? null"
+      :totals="day.data?.totals ?? null"
     />
   </div>
 </template>

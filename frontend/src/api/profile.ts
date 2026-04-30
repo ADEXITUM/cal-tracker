@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { ActivityLevel, Gender, Profile } from '@/types/api'
+import type { Gender, Profile } from '@/types/api'
 
 interface ProfileResponse {
   data: Profile
@@ -12,6 +12,5 @@ export const profileApi = {
     gender: Gender
     birthDate: string
     heightCm: number
-    activityLevel: ActivityLevel
   }) => api.put<ProfileResponse>('/profile', payload),
 }

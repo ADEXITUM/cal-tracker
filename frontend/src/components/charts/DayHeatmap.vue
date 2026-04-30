@@ -46,11 +46,10 @@ const byDate = computed(() => {
 
 function colorFor(date: string): string {
   const data = byDate.value.get(date)
-  if (!data || data.deltaFromGoal === null) return 'var(--color-surface-3)'
-  const d = data.deltaFromGoal
-  if (Math.abs(d) <= 100) return 'var(--color-green)'
-  if (Math.abs(d) <= 250) return 'var(--color-accent)'
-  if (Math.abs(d) <= 500) return 'var(--color-yellow)'
+  if (!data || data.deltaFromGoal === null || data.modeCode === null) return 'var(--color-surface-3)'
+  // Color reflects plan execution — green on target, yellow off, red far off.
+  if (data.modeCode === 'on_target') return 'var(--color-green)'
+  if (data.modeCode === 'over' || data.modeCode === 'under') return 'var(--color-yellow)'
   return 'var(--color-red)'
 }
 
@@ -157,7 +156,7 @@ function formatDelta(delta: number | null): string {
               <span
                 v-if="tooltipData(selected)!.delta !== null"
                 class="text-xs font-medium"
-                :style="{ color: Math.abs(tooltipData(selected)!.delta!) <= 100 ? 'var(--color-green)' : 'var(--color-accent)' }"
+                :style="{ color: Math.abs(tooltipData(selected)!.delta!) <= 100 ? 'var(--color-green)' : 'var(--color-text-2)' }"
               >
                 {{ formatDelta(tooltipData(selected)!.delta) }}
               </span>
@@ -183,19 +182,16 @@ function formatDelta(delta: number | null): string {
     <!-- Legend -->
     <div class="mt-4 flex flex-wrap items-center gap-3 text-xs" style="color: var(--color-text-3)">
       <span class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-sm" style="background: var(--color-green)" /> ±100 ккал
+        <span class="w-3 h-3 rounded-sm" style="background: var(--color-green)" /> на цели
       </span>
       <span class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-sm" style="background: var(--color-accent)" /> ±250
+        <span class="w-3 h-3 rounded-sm" style="background: var(--color-yellow)" /> отклонение
       </span>
       <span class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-sm" style="background: var(--color-yellow)" /> ±500
+        <span class="w-3 h-3 rounded-sm" style="background: var(--color-red)" /> сильное отклонение
       </span>
       <span class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-sm" style="background: var(--color-red)" /> &gt;500
-      </span>
-      <span class="flex items-center gap-1.5">
-        <span class="w-3 h-3 rounded-sm" style="background: var(--color-surface-3)" /> нет цели
+        <span class="w-3 h-3 rounded-sm" style="background: var(--color-surface-3)" /> нет данных
       </span>
     </div>
   </div>

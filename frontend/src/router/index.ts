@@ -54,6 +54,12 @@ const router = createRouter({
       meta: { auth: true },
     },
     {
+      path: '/settings/how-it-works',
+      name: 'how-it-works',
+      component: () => import('@/views/HowItWorksView.vue'),
+      meta: { auth: true, hideNav: true },
+    },
+    {
       path: '/',
       redirect: '/day',
     },

@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useDayStore } from '@/stores/day'
-import { profileApi } from '@/api/profile'
 import { stepsKcal } from '@/lib/tdee'
 import ASheet from '@/components/ui/ASheet.vue'
 import AButton from '@/components/ui/AButton.vue'
 import ANumpad from '@/components/ui/ANumpad.vue'
-import type { Profile } from '@/types/api'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
@@ -14,7 +12,6 @@ const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 const day = useDayStore()
 const stepsStr = ref('0')
 const loading = ref(false)
-const profile = ref<Profile | null>(null)
 
 const steps = computed(() => {
   const n = parseInt(stepsStr.value, 10)
@@ -23,18 +20,12 @@ const steps = computed(() => {
 
 const weightKg = computed(() => day.data?.measurements[0]?.weightKg ?? 80)
 
-const kcalEstimate = computed(() => {
-  if (!profile.value) return 0
-  return stepsKcal(steps.value, weightKg.value, profile.value.activityLevel)
-})
+const kcalEstimate = computed(() => stepsKcal(steps.value, weightKg.value))
 
 const isEditing = computed(() => (day.data?.dayEntry?.steps ?? 0) > 0)
 
-async function open() {
+function open() {
   stepsStr.value = String(day.data?.dayEntry?.steps ?? 0)
-  if (!profile.value) {
-    try { profile.value = (await profileApi.get()).data } catch { /* ignore */ }
-  }
 }
 
 watch(() => props.modelValue, (v) => { if (v) open() })
@@ -68,7 +59,6 @@ async function clear() {
   >
     <ANumpad v-model="stepsStr" label="Шаги" unit="" :allow-decimal="false" />
 
-    <!-- Live kcal estimate -->
     <div class="mt-4 grid grid-cols-2 gap-2 text-center">
       <div class="py-2.5 rounded-[var(--radius-sm)]" style="background: var(--color-surface-2)">
         <p class="font-mono text-base font-medium" style="color: var(--color-text)">
@@ -85,7 +75,7 @@ async function clear() {
     </div>
 
     <p class="text-xs mt-3" style="color: var(--color-text-3)">
-      Расчёт основан на вашем весе и уровне активности.
+      Шаги × вес × 0.0005 — рекомендуемая оценка.
     </p>
 
     <div class="flex gap-2 mt-4">

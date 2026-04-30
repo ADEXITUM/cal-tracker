@@ -21,6 +21,7 @@ class GoalTest extends TestCase
             ->postJson('/api/v1/goals', [
                 'start_date' => '2026-01-01',
                 'end_date'   => null,
+                'type'       => 'maintenance',
                 'kcal'       => 1700,
                 'protein_g'  => 150,
                 'fat_g'      => 60,
@@ -28,13 +29,14 @@ class GoalTest extends TestCase
             ])
             ->assertStatus(201)
             ->assertJsonPath('data.kcal', 1700)
-            ->assertJsonStructure(['data' => ['uuid', 'start_date', 'kcal']]);
+            ->assertJsonPath('data.type', 'maintenance')
+            ->assertJsonStructure(['data' => ['uuid', 'start_date', 'type', 'kcal']]);
     }
 
-    public function test_creating_open_goal_closes_previous(): void
+    public function test_overlapping_goal_rejected(): void
     {
         $user = User::factory()->create();
-        $old = Goal::factory()->create([
+        Goal::factory()->create([
             'user_id'    => $user->id,
             'start_date' => '2026-01-01',
             'end_date'   => null,
@@ -43,23 +45,23 @@ class GoalTest extends TestCase
         $this->actingAs($user)
             ->postJson('/api/v1/goals', [
                 'start_date' => '2026-02-01',
+                'type'       => 'cut',
                 'kcal'       => 2000,
                 'protein_g'  => 160,
                 'fat_g'      => 70,
                 'carbs_g'    => 200,
             ])
-            ->assertStatus(201);
-
-        $this->assertDatabaseHas('goals', [
-            'id'       => $old->id,
-            'end_date' => '2026-01-31',
-        ]);
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['start_date']);
     }
 
     public function test_list_goals(): void
     {
         $user = User::factory()->create();
-        Goal::factory()->count(3)->create(['user_id' => $user->id]);
+        // Non-overlapping goals: closed → closed → open
+        Goal::factory()->create(['user_id' => $user->id, 'start_date' => '2026-01-01', 'end_date' => '2026-01-31']);
+        Goal::factory()->create(['user_id' => $user->id, 'start_date' => '2026-02-01', 'end_date' => '2026-02-28']);
+        Goal::factory()->create(['user_id' => $user->id, 'start_date' => '2026-03-01', 'end_date' => null]);
 
         $this->actingAs($user)
             ->getJson('/api/v1/goals')
@@ -75,13 +77,15 @@ class GoalTest extends TestCase
         $this->actingAs($user)
             ->putJson("/api/v1/goals/{$goal->uuid}", [
                 'start_date' => $goal->start_date->toDateString(),
+                'type'       => 'cut',
                 'kcal'       => 1900,
                 'protein_g'  => 160,
                 'fat_g'      => 65,
                 'carbs_g'    => 160,
             ])
             ->assertOk()
-            ->assertJsonPath('data.kcal', 1900);
+            ->assertJsonPath('data.kcal', 1900)
+            ->assertJsonPath('data.type', 'cut');
     }
 
     public function test_delete_goal(): void
@@ -125,7 +129,7 @@ class GoalTest extends TestCase
                 'carbs_g'    => 0,
             ])
             ->assertStatus(422)
-            ->assertJsonValidationErrors(['start_date', 'kcal', 'protein_g', 'fat_g']);
+            ->assertJsonValidationErrors(['start_date', 'type', 'kcal', 'protein_g', 'fat_g']);
     }
 
     public function test_goals_require_auth(): void

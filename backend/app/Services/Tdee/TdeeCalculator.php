@@ -9,6 +9,12 @@ use Carbon\Carbon;
 
 class TdeeCalculator
 {
+    /** Sedentary BMR multiplier — covers sleep + basic life without intentional walking/training. */
+    public const BASE_MULTIPLIER = 1.2;
+
+    /** kcal per step per kg of bodyweight (rough average for walking pace). */
+    public const STEP_KCAL_PER_KG = 0.0005;
+
     /** @param array<array{kcal_burned: int|null}> $workouts */
     public static function compute(
         Profile $profile,
@@ -22,34 +28,20 @@ class TdeeCalculator
             ? (int) round(10 * $weightKg + 6.25 * $profile->height_cm - 5 * $age + 5)
             : (int) round(10 * $weightKg + 6.25 * $profile->height_cm - 5 * $age - 161);
 
-        $multipliers = [
-            'sedentary' => 1.2,
-            'light'     => 1.375,
-            'moderate'  => 1.55,
-            'active'    => 1.725,
-        ];
-        $multiplier = $multipliers[$profile->activity_level];
-        $activityKcal = (int) round($bmr * ($multiplier - 1));
+        $baseKcal = (int) round($bmr * self::BASE_MULTIPLIER);
 
-        $stepsCoefficients = [
-            'sedentary' => 1.0,
-            'light'     => 0.7,
-            'moderate'  => 0.4,
-            'active'    => 0.2,
-        ];
         $stepsKcal = 0;
         if ($steps !== null && $steps > 0) {
-            $coeff = $stepsCoefficients[$profile->activity_level];
-            $stepsKcal = (int) round($steps * $weightKg * 0.0005 * $coeff);
+            $stepsKcal = (int) round($steps * $weightKg * self::STEP_KCAL_PER_KG);
         }
 
         $workoutsKcal = (int) array_sum(array_column($workouts, 'kcal_burned'));
 
-        $total = $bmr + $activityKcal + $stepsKcal + $workoutsKcal;
+        $total = $baseKcal + $stepsKcal + $workoutsKcal;
 
         return new TdeeBreakdown(
             bmr: $bmr,
-            activityKcal: $activityKcal,
+            baseKcal: $baseKcal,
             stepsKcal: $stepsKcal,
             workoutsKcal: $workoutsKcal,
             total: $total,

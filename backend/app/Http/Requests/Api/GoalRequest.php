@@ -19,6 +19,7 @@ class GoalRequest extends FormRequest
         return [
             'start_date' => ['required', 'date'],
             'end_date'   => ['nullable', 'date', 'after_or_equal:start_date'],
+            'type'       => ['required', 'in:cut,maintenance,bulk'],
             'kcal'       => ['required', 'integer', 'min:800', 'max:6000'],
             'protein_g'  => ['required', 'integer', 'min:0', 'max:500'],
             'fat_g'      => ['required', 'integer', 'min:0', 'max:400'],

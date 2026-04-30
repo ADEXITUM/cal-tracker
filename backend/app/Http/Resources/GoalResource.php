@@ -16,6 +16,7 @@ class GoalResource extends JsonResource
             'uuid'       => $this->uuid,
             'start_date' => $this->start_date?->toDateString(),
             'end_date'   => $this->end_date?->toDateString(),
+            'type'       => $this->type,
             'kcal'       => $this->kcal,
             'protein_g'  => $this->protein_g,
             'fat_g'      => $this->fat_g,

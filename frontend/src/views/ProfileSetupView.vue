@@ -9,9 +9,9 @@ import { ValidationError } from '@/api/client'
 import AButton from '@/components/ui/AButton.vue'
 import AInput from '@/components/ui/AInput.vue'
 import GoalPresets from '@/components/goals/GoalPresets.vue'
-import { computeTdee } from '@/lib/tdee'
-import { defaultMacroSplit } from '@/lib/modes'
-import type { ActivityLevel, Gender } from '@/types/api'
+import { GOAL_TYPE_LABEL, GOAL_TYPE_DESCRIPTION, defaultMacroSplit, GOAL_TYPE_DELTA } from '@/lib/modes'
+import { estimateAverageTdee } from '@/lib/tdee'
+import type { ActivityLevel, Gender, GoalType } from '@/types/api'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -40,41 +40,42 @@ function onBirthDateInput(raw: string) {
 // Step 2
 const heightCm = ref('')
 const weightKg = ref('')
-const activityLevel = ref<ActivityLevel>('sedentary')
 
-const activityOptions: { value: ActivityLevel; label: string; hint: string }[] = [
-  { value: 'sedentary', label: 'Сидячий', hint: 'Офис, мало движения' },
-  { value: 'light', label: 'Лёгкий', hint: '1-3 тренировки в неделю' },
-  { value: 'moderate', label: 'Умеренный', hint: '3-5 тренировок в неделю' },
-  { value: 'active', label: 'Активный', hint: '6-7 тренировок или физический труд' },
-]
+// Step 3
+const goalType = ref<GoalType>('maintenance')
+const activityLevel = ref<ActivityLevel>('light')
 
-// Step 3 — computed TDEE + initial macros
-const tdeeKcal = computed(() => {
-  if (!birthDateDisplay.value || !heightCm.value || !weightKg.value) return 0
+const profileForCalc = computed(() => {
+  if (!birthDateDisplay.value || !heightCm.value || !weightKg.value) return null
   try {
-    const td = computeTdee({
+    return {
       gender: gender.value,
       birthDate: birthDateToApi(),
       heightCm: parseInt(heightCm.value),
-      activityLevel: activityLevel.value,
-      weightKg: parseFloat(weightKg.value),
-    })
-    return td.total
-  } catch { return 0 }
+    }
+  } catch { return null }
 })
 
 const goalDraft = ref({ kcal: 0, proteinG: 0, fatG: 0, carbsG: 0 })
 
-function initGoalToMaintenance() {
-  goalDraft.value = defaultMacroSplit(tdeeKcal.value, parseFloat(weightKg.value))
+function initGoalSuggestion() {
+  if (!profileForCalc.value) return
+  const tdee = estimateAverageTdee({
+    ...profileForCalc.value,
+    weightKg: parseFloat(weightKg.value),
+    activityLevel: activityLevel.value,
+  })
+  const kcal = Math.max(800, tdee + GOAL_TYPE_DELTA[goalType.value])
+  goalDraft.value = defaultMacroSplit(kcal, parseFloat(weightKg.value))
 }
+
+const goalTypeOptions: GoalType[] = ['cut', 'maintenance', 'bulk']
 
 async function nextStep() {
   errors.value = {}
   if (step.value === 1) { step.value = 2; return }
   if (step.value === 2) {
-    initGoalToMaintenance()
+    initGoalSuggestion()
     step.value = 3
     return
   }
@@ -88,12 +89,10 @@ async function save() {
       gender: gender.value,
       birthDate: birthDateToApi(),
       heightCm: parseInt(heightCm.value),
-      activityLevel: activityLevel.value,
     })
 
     const today = new Date().toISOString().slice(0, 10)
 
-    // Save current weight as a measurement so TDEE works on day view
     await daysApi.addMeasurement(today, {
       measuredAt: new Date().toISOString(),
       weightKg: parseFloat(weightKg.value),
@@ -103,6 +102,7 @@ async function save() {
     await goalsApi.create({
       startDate: today,
       endDate: null,
+      type: goalType.value,
       kcal: goalDraft.value.kcal,
       proteinG: goalDraft.value.proteinG,
       fatG: goalDraft.value.fatG,
@@ -116,7 +116,7 @@ async function save() {
     if (e instanceof ValidationError) {
       Object.entries(e.errors).forEach(([k, v]) => { errors.value[k] = v[0] })
       if (errors.value.gender || errors.value.birthDate) step.value = 1
-      else if (errors.value.heightCm || errors.value.activityLevel || errors.value.weightKg) step.value = 2
+      else if (errors.value.heightCm || errors.value.weightKg) step.value = 2
     }
   } finally {
     loading.value = false
@@ -137,7 +137,7 @@ async function save() {
       </div>
 
       <h2 class="mb-6 text-xl font-semibold" style="color: var(--color-text)">
-        {{ step === 1 ? 'Пол и дата рождения' : step === 2 ? 'Рост, вес, активность' : 'Первая цель' }}
+        {{ step === 1 ? 'Пол и дата рождения' : step === 2 ? 'Рост и вес' : 'Первая цель' }}
       </h2>
 
       <!-- Step 1 -->
@@ -185,37 +185,37 @@ async function save() {
             :error="errors.weightKg"
           />
         </div>
-        <div>
-          <p class="mb-1 text-sm font-medium" style="color: var(--color-text)">Уровень активности</p>
-          <div class="flex flex-col gap-2">
-            <button
-              v-for="opt in activityOptions"
-              :key="opt.value"
-              type="button"
-              class="flex items-center justify-between rounded-[var(--radius-sm)] border px-3 py-2.5 text-left transition-colors"
-              :style="{
-                background: activityLevel === opt.value ? 'var(--color-accent-tint)' : 'var(--color-surface)',
-                borderColor: activityLevel === opt.value ? 'var(--color-accent)' : 'var(--color-border)',
-              }"
-              @click="activityLevel = opt.value"
-            >
-              <span class="text-base font-medium" style="color: var(--color-text)">{{ opt.label }}</span>
-              <span class="text-sm" style="color: var(--color-text-2)">{{ opt.hint }}</span>
-            </button>
-          </div>
-        </div>
       </div>
 
       <!-- Step 3 -->
       <div v-else class="flex flex-col gap-4">
-        <p class="text-sm" style="color: var(--color-text-2)">
-          По вашим данным TDEE = <strong>{{ tdeeKcal }}</strong> ккал. Выберите цель.
-        </p>
+        <div class="flex flex-col gap-1.5">
+          <p class="text-sm font-medium" style="color: var(--color-text)">Тип цели</p>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="t in goalTypeOptions"
+              :key="t"
+              type="button"
+              class="px-3 py-2 rounded-[var(--radius-sm)] text-sm transition-colors"
+              :style="{
+                background: goalType === t ? 'var(--color-accent)' : 'var(--color-surface-2)',
+                color: goalType === t ? 'white' : 'var(--color-text-2)',
+                fontWeight: goalType === t ? '600' : '400',
+              }"
+              @click="goalType = t; initGoalSuggestion()"
+            >{{ GOAL_TYPE_LABEL[t] }}</button>
+          </div>
+          <p class="text-xs" style="color: var(--color-text-3)">
+            {{ GOAL_TYPE_DESCRIPTION[goalType] }}
+          </p>
+        </div>
+
         <GoalPresets
           v-model="goalDraft"
-          :tdee-kcal="tdeeKcal"
+          v-model:activity-level="activityLevel"
+          :goal-type="goalType"
+          :profile="profileForCalc"
           :weight-kg="parseFloat(weightKg) || 0"
-          initial-preset="maintenance"
         />
       </div>
 

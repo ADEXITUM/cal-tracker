@@ -19,7 +19,6 @@ class Profile extends Model
         'gender',
         'birth_date',
         'height_cm',
-        'activity_level',
     ];
 
     protected function casts(): array

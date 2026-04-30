@@ -1,45 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useGoalsStore } from '@/stores/goals'
-import { profileApi } from '@/api/profile'
-import { daysApi } from '@/api/days'
-import { computeTdee } from '@/lib/tdee'
-import { classifyMode } from '@/lib/modes'
+import { GOAL_TYPE_LABEL } from '@/lib/modes'
 import ACard from '@/components/ui/ACard.vue'
 import AButton from '@/components/ui/AButton.vue'
-import AModeBadge from '@/components/ui/AModeBadge.vue'
 import GoalEditSheet from '@/components/goals/GoalEditSheet.vue'
-import type { Goal, ActivityLevel, Gender } from '@/types/api'
+import type { Goal, GoalType } from '@/types/api'
 
 const goals = useGoalsStore()
 const showEdit = ref(false)
 const editing = ref<Goal | null>(null)
-const tdeeKcal = ref(0)
-const tdeeReady = ref(false)
 
 onMounted(async () => {
-  await Promise.all([goals.fetchAll(), bootstrapTdee()])
+  await goals.fetchAll()
 })
-
-async function bootstrapTdee() {
-  try {
-    const [profileRes, todayRes] = await Promise.all([
-      profileApi.get(),
-      daysApi.get(new Date().toISOString().slice(0, 10)),
-    ])
-    const profile = profileRes.data
-    const weight = todayRes.data.measurements[0]?.weightKg ?? 80
-    const td = computeTdee({
-      gender: profile.gender as Gender,
-      birthDate: profile.birthDate,
-      heightCm: profile.heightCm,
-      activityLevel: profile.activityLevel as ActivityLevel,
-      weightKg: weight,
-    })
-    tdeeKcal.value = td.total
-  } catch { /* leave at 0 */ }
-  tdeeReady.value = true
-}
 
 function openCreate() {
   editing.value = null
@@ -61,9 +35,10 @@ function isActive(g: Goal): boolean {
   return g.startDate <= today && (g.endDate === null || g.endDate >= today)
 }
 
-function modeFor(g: Goal) {
-  if (!tdeeKcal.value) return null
-  return classifyMode(g.kcal, tdeeKcal.value)
+const TYPE_STYLE: Record<GoalType, { bg: string; text: string; icon: string }> = {
+  cut:         { bg: 'var(--color-red-soft)',   text: 'var(--color-red)',    icon: '↘' },
+  maintenance: { bg: 'var(--color-surface-2)',  text: 'var(--color-text-2)', icon: '=' },
+  bulk:        { bg: 'var(--color-green-soft)', text: 'var(--color-green)',  icon: '↗' },
 }
 
 async function confirmEnd(g: Goal) {
@@ -102,17 +77,13 @@ const sortedGoals = computed(() => goals.sorted)
         <div class="px-4 py-3 flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
-              <div
-                v-if="!tdeeReady"
-                class="h-5 w-20 rounded-full animate-pulse"
-                style="background: var(--color-surface-2)"
-              />
-              <AModeBadge
-                v-else-if="modeFor(g)"
-                :code="modeFor(g)!.code"
-                :label="modeFor(g)!.label"
-                :delta-kcal="modeFor(g)!.deltaKcal"
-              />
+              <span
+                class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+                :style="{ background: TYPE_STYLE[g.type].bg, color: TYPE_STYLE[g.type].text }"
+              >
+                <span>{{ TYPE_STYLE[g.type].icon }}</span>
+                <span>{{ GOAL_TYPE_LABEL[g.type] }}</span>
+              </span>
               <span
                 v-if="isActive(g)"
                 class="text-[10px] px-1.5 py-0.5 rounded-full font-medium"

@@ -20,8 +20,8 @@ class DayTest extends TestCase
     private function userWithProfile(): User
     {
         $user = User::factory()->create();
-        Profile::factory()->create(['user_id' => $user->id, 'gender' => 'male', 'birth_date' => '1992-01-01', 'height_cm' => 180, 'activity_level' => 'sedentary']);
-        Goal::factory()->create(['user_id' => $user->id, 'start_date' => '2020-01-01', 'kcal' => 1700, 'protein_g' => 150, 'fat_g' => 60, 'carbs_g' => 140]);
+        Profile::factory()->create(['user_id' => $user->id, 'gender' => 'male', 'birth_date' => '1992-01-01', 'height_cm' => 180]);
+        Goal::factory()->create(['user_id' => $user->id, 'start_date' => '2020-01-01', 'type' => 'maintenance', 'kcal' => 1700, 'protein_g' => 150, 'fat_g' => 60, 'carbs_g' => 140]);
         return $user->load('profile');
     }
 

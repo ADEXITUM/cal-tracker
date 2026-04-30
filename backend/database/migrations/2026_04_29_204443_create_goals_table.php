@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->date('start_date');
             $table->date('end_date')->nullable();
+            $table->enum('type', ['cut', 'maintenance', 'bulk']);
             $table->smallInteger('kcal');
             $table->smallInteger('protein_g');
             $table->smallInteger('fat_g');

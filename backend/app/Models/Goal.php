@@ -19,6 +19,7 @@ class Goal extends Model
         'user_id',
         'start_date',
         'end_date',
+        'type',
         'kcal',
         'protein_g',
         'fat_g',

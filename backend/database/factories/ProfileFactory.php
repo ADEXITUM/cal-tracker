@@ -20,7 +20,6 @@ class ProfileFactory extends Factory
             'gender' => fake()->randomElement(['male', 'female']),
             'birth_date' => fake()->dateTimeBetween('-60 years', '-18 years')->format('Y-m-d'),
             'height_cm' => fake()->numberBetween(150, 200),
-            'activity_level' => fake()->randomElement(['sedentary', 'light', 'moderate', 'active']),
         ];
     }
 }

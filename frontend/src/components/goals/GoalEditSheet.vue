@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useGoalsStore } from '@/stores/goals'
-import { useAuthStore } from '@/stores/auth'
 import { profileApi } from '@/api/profile'
 import { daysApi } from '@/api/days'
 import ASheet from '@/components/ui/ASheet.vue'
 import AButton from '@/components/ui/AButton.vue'
 import AInput from '@/components/ui/AInput.vue'
 import GoalPresets from '@/components/goals/GoalPresets.vue'
-import { computeTdee } from '@/lib/tdee'
-import { classifyMode } from '@/lib/modes'
-import type { Goal, ActivityLevel, Gender } from '@/types/api'
+import { GOAL_TYPE_LABEL, GOAL_TYPE_DESCRIPTION } from '@/lib/modes'
+import type { Goal, GoalType, ActivityLevel, Gender } from '@/types/api'
 
 const props = defineProps<{
   modelValue: boolean
@@ -23,38 +21,42 @@ const emit = defineEmits<{
 }>()
 
 const goals = useGoalsStore()
-const auth = useAuthStore()
 
 const startDate = ref('')
 const endDate = ref<string | null>(null)
 const noEndDate = ref(true)
+const goalType = ref<GoalType>('maintenance')
 const goalDraft = ref({ kcal: 2000, proteinG: 150, fatG: 60, carbsG: 200 })
 const saving = ref(false)
 const error = ref('')
 
-// We need TDEE for presets — fetch profile + latest weight on open
-const tdeeKcal = ref(2000)
+// Profile inputs for the local TDEE-helper used by GoalPresets.
+const profileData = ref<{ gender: Gender; birthDate: string; heightCm: number } | null>(null)
 const weightKg = ref(80)
 
+// Activity level lives only here — used to estimate average TDEE for the kcal calculator.
+// Persisted in localStorage so the user doesn't re-pick it every time.
+const ACTIVITY_KEY = 'goal_calc_activity_level'
+const activityLevel = ref<ActivityLevel>(
+  (typeof localStorage !== 'undefined' && (localStorage.getItem(ACTIVITY_KEY) as ActivityLevel)) || 'light',
+)
+watch(activityLevel, (v) => {
+  if (typeof localStorage !== 'undefined') localStorage.setItem(ACTIVITY_KEY, v)
+})
+
 async function bootstrap() {
-  // Pull TDEE inputs (profile + latest weight)
   try {
     const [profileRes, todayRes] = await Promise.all([
       profileApi.get(),
       daysApi.get(new Date().toISOString().slice(0, 10)),
     ])
-    const profile = profileRes.data
+    profileData.value = {
+      gender: profileRes.data.gender as Gender,
+      birthDate: profileRes.data.birthDate,
+      heightCm: profileRes.data.heightCm,
+    }
     const latestWeight = todayRes.data.measurements[0]?.weightKg
     if (latestWeight) weightKg.value = latestWeight
-
-    const td = computeTdee({
-      gender: profile.gender as Gender,
-      birthDate: profile.birthDate,
-      heightCm: profile.heightCm,
-      activityLevel: profile.activityLevel as ActivityLevel,
-      weightKg: weightKg.value,
-    })
-    tdeeKcal.value = td.total
   } catch {
     // fallback values stay
   }
@@ -65,6 +67,7 @@ function reset() {
     startDate.value = props.goal.startDate
     endDate.value = props.goal.endDate
     noEndDate.value = props.goal.endDate === null
+    goalType.value = props.goal.type
     goalDraft.value = {
       kcal: props.goal.kcal,
       proteinG: props.goal.proteinG,
@@ -75,7 +78,8 @@ function reset() {
     startDate.value = new Date().toISOString().slice(0, 10)
     endDate.value = null
     noEndDate.value = true
-    goalDraft.value = { kcal: tdeeKcal.value, proteinG: 150, fatG: 60, carbsG: 200 }
+    goalType.value = 'maintenance'
+    goalDraft.value = { kcal: 2000, proteinG: 150, fatG: 60, carbsG: 200 }
   }
   error.value = ''
 }
@@ -87,20 +91,12 @@ watch(() => props.modelValue, async (v) => {
   }
 })
 
-const previewMode = computed(() => classifyMode(goalDraft.value.kcal, tdeeKcal.value))
-
-/**
- * Goals whose date range overlaps with this one. Each calendar day must
- * belong to at most one goal — saving is disabled when overlaps exist.
- * The user has to close conflicting goals first.
- */
 const conflictingGoals = computed(() => {
   if (!startDate.value) return []
   const newEnd = noEndDate.value ? null : endDate.value
   return goals.items.filter(g => {
     if (props.goal && g.uuid === props.goal.uuid) return false
     const gEnd = g.endDate
-    // Overlap test: !(g ends before we start || g starts after we end)
     const gEndsBeforeUs = gEnd !== null && gEnd < startDate.value
     const gStartsAfterUs = newEnd !== null && g.startDate > newEnd
     return !(gEndsBeforeUs || gStartsAfterUs)
@@ -120,6 +116,7 @@ async function save() {
     const payload = {
       startDate: startDate.value,
       endDate: noEndDate.value ? null : endDate.value,
+      type: goalType.value,
       kcal: goalDraft.value.kcal,
       proteinG: goalDraft.value.proteinG,
       fatG: goalDraft.value.fatG,
@@ -152,7 +149,7 @@ async function endNow() {
   }
 }
 
-void auth // keep import for later if needed
+const goalTypeOptions: GoalType[] = ['cut', 'maintenance', 'bulk']
 </script>
 
 <template>
@@ -162,19 +159,35 @@ void auth // keep import for later if needed
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <div class="flex flex-col gap-4">
+      <!-- Goal type — explicit user choice -->
+      <div class="flex flex-col gap-1.5">
+        <p class="text-sm font-medium" style="color: var(--color-text)">Тип цели</p>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button
+            v-for="t in goalTypeOptions"
+            :key="t"
+            type="button"
+            class="px-3 py-2 rounded-[var(--radius-sm)] text-sm transition-colors"
+            :style="{
+              background: goalType === t ? 'var(--color-accent)' : 'var(--color-surface-2)',
+              color: goalType === t ? 'white' : 'var(--color-text-2)',
+              fontWeight: goalType === t ? '600' : '400',
+            }"
+            @click="goalType = t"
+          >{{ GOAL_TYPE_LABEL[t] }}</button>
+        </div>
+        <p class="text-xs" style="color: var(--color-text-3)">
+          {{ GOAL_TYPE_DESCRIPTION[goalType] }}
+        </p>
+      </div>
+
       <GoalPresets
         v-model="goalDraft"
-        :tdee-kcal="tdeeKcal"
+        v-model:activity-level="activityLevel"
+        :goal-type="goalType"
+        :profile="profileData"
         :weight-kg="weightKg"
       />
-
-      <div
-        class="text-xs p-2 rounded-[var(--radius-sm)] text-center"
-        style="background: var(--color-surface-2); color: var(--color-text-2)"
-      >
-        Режим: <strong>{{ previewMode.label }}</strong>
-        ({{ previewMode.deltaKcal > 0 ? '+' : '' }}{{ previewMode.deltaKcal }} ккал от TDEE)
-      </div>
 
       <div class="grid grid-cols-2 gap-3">
         <AInput v-model="startDate" label="Начало" type="date" />

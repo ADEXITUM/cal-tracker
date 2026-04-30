@@ -33,14 +33,12 @@ class DayAggregator
         $profile = $user->profile;
 
         $tdeeBreakdown = null;
-        $mode = null;
-        if ($profile && $goal) {
+        if ($profile) {
             $workoutsForTdee = $entry
                 ? $entry->workouts->map(fn ($w) => ['kcal_burned' => $w->kcal_burned])->toArray()
                 : [];
             $steps = $entry?->steps;
             $tdeeBreakdown = TdeeCalculator::compute($profile, $latestWeight, $steps, $workoutsForTdee);
-            $mode = ModeClassifier::classify($goal->kcal, $tdeeBreakdown->total);
         }
 
         $meals = $entry ? $entry->meals : collect();
@@ -57,6 +55,9 @@ class DayAggregator
             'fat_g'     => round((float) $meals->sum('fat_g'), 1),
             'carbs_g'   => round((float) $meals->sum('carbs_g'), 1),
         ];
+
+        // Mode now reflects plan execution (eaten vs goal), independent of TDEE.
+        $mode = $goal ? ModeClassifier::classify($goal->kcal, (float) $totals['kcal']) : null;
 
         $now = Carbon::now($user->timezone ?? 'UTC');
         $hoursIntoDay = $date->isSameDay($now) ? (int) $now->hour : 23;
@@ -83,7 +84,7 @@ class DayAggregator
             'goal'         => $goal,
             'tdee'         => $tdeeBreakdown ? [
                 'bmr'           => $tdeeBreakdown->bmr,
-                'activity_kcal' => $tdeeBreakdown->activityKcal,
+                'base_kcal'     => $tdeeBreakdown->baseKcal,
                 'steps_kcal'    => $tdeeBreakdown->stepsKcal,
                 'workouts_kcal' => $tdeeBreakdown->workoutsKcal,
                 'total'         => $tdeeBreakdown->total,

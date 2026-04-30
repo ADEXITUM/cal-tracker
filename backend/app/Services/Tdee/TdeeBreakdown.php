@@ -8,7 +8,7 @@ readonly class TdeeBreakdown
 {
     public function __construct(
         public int $bmr,
-        public int $activityKcal,
+        public int $baseKcal,
         public int $stepsKcal,
         public int $workoutsKcal,
         public int $total,

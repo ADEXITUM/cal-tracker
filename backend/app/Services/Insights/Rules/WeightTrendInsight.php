@@ -15,7 +15,7 @@ class WeightTrendInsight implements InsightInterface
 
     public function evaluate(InsightContext $ctx): ?Insight
     {
-        if (!$ctx->goal || !$ctx->mode) return null;
+        if (!$ctx->goal) return null;
         if (!$ctx->isToday()) return null;
 
         $startedAt = $ctx->goal->start_date;
@@ -47,9 +47,9 @@ class WeightTrendInsight implements InsightInterface
         $slopePerDay = ($n * $sumXY - $sumX * $sumY) / $denom;
         $kgPerWeek = round($slopePerDay * 7, 2);
 
-        $modeCode = $ctx->mode->code;
-        $isCut = in_array($modeCode, ['cut', 'extreme_cut', 'cut_lite'], true);
-        $isBulk = in_array($modeCode, ['bulk', 'light_bulk'], true);
+        $goalType = $ctx->goal->type;
+        $isCut = $goalType === 'cut';
+        $isBulk = $goalType === 'bulk';
 
         $assessment = '';
         if ($isCut) {

@@ -1,11 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { computeTdee } from '../tdee'
+import { computeTdee, BASE_MULTIPLIER } from '../tdee'
 
 // Tests mirror backend Tests/Unit/TdeeCalculatorTest.php — same inputs must yield same outputs.
 
 describe('computeTdee', () => {
-  // Use a fixed past birth date and compute age the same way the backend does.
-  // Backend uses Carbon::age which compares by today's date.
   const ageOf = (birth: string) => {
     const b = new Date(birth + 'T12:00:00')
     const now = new Date()
@@ -22,7 +20,6 @@ describe('computeTdee', () => {
       gender: 'male',
       birthDate: '1992-01-01',
       heightCm: 180,
-      activityLevel: 'sedentary',
       weightKg: 80,
     })
     expect(result.bmr).toBe(expected)
@@ -35,69 +32,46 @@ describe('computeTdee', () => {
       gender: 'female',
       birthDate: '1992-01-01',
       heightCm: 165,
-      activityLevel: 'sedentary',
       weightKg: 60,
     })
     expect(result.bmr).toBe(expected)
   })
 
-  it('sedentary with no steps no workouts: total = bmr + activity', () => {
+  it('baseKcal = bmr × BASE_MULTIPLIER', () => {
     const result = computeTdee({
-      gender: 'male',
-      birthDate: '1992-01-01',
-      heightCm: 180,
-      activityLevel: 'sedentary',
-      weightKg: 80,
+      gender: 'male', birthDate: '1992-01-01', heightCm: 180, weightKg: 80,
+    })
+    expect(result.baseKcal).toBe(Math.round(result.bmr * BASE_MULTIPLIER))
+  })
+
+  it('no steps no workouts: total = baseKcal', () => {
+    const result = computeTdee({
+      gender: 'male', birthDate: '1992-01-01', heightCm: 180, weightKg: 80,
     })
     expect(result.stepsKcal).toBe(0)
     expect(result.workoutsKcal).toBe(0)
-    expect(result.total).toBe(result.bmr + result.activityKcal)
+    expect(result.total).toBe(result.baseKcal)
   })
 
-  it('steps bonus for sedentary: 10000 steps × 80 kg × 0.0005 × 1.0 = 400', () => {
+  it('steps: 10000 steps × 80 kg × 0.0005 = 400', () => {
     const result = computeTdee({
-      gender: 'male',
-      birthDate: '1992-01-01',
-      heightCm: 180,
-      activityLevel: 'sedentary',
-      weightKg: 80,
-      steps: 10000,
+      gender: 'male', birthDate: '1992-01-01', heightCm: 180, weightKg: 80, steps: 10000,
     })
     expect(result.stepsKcal).toBe(400)
   })
 
-  it('steps coefficient drops for active users (×0.2)', () => {
-    const result = computeTdee({
-      gender: 'male',
-      birthDate: '1992-01-01',
-      heightCm: 180,
-      activityLevel: 'active',
-      weightKg: 80,
-      steps: 10000,
-    })
-    expect(result.stepsKcal).toBe(80) // 10000 * 80 * 0.0005 * 0.2
-  })
-
   it('workouts add directly to total', () => {
     const result = computeTdee({
-      gender: 'male',
-      birthDate: '1992-01-01',
-      heightCm: 180,
-      activityLevel: 'sedentary',
-      weightKg: 80,
-      workoutsKcal: 450,
+      gender: 'male', birthDate: '1992-01-01', heightCm: 180, weightKg: 80, workoutsKcal: 450,
     })
     expect(result.workoutsKcal).toBe(450)
   })
 
-  it('activity multiplier light = 1.375', () => {
-    const a = computeTdee({
-      gender: 'male', birthDate: '1992-01-01', heightCm: 180, activityLevel: 'sedentary', weightKg: 80,
+  it('total sums components', () => {
+    const result = computeTdee({
+      gender: 'male', birthDate: '1992-01-01', heightCm: 180, weightKg: 80,
+      steps: 8000, workoutsKcal: 200,
     })
-    const b = computeTdee({
-      gender: 'male', birthDate: '1992-01-01', heightCm: 180, activityLevel: 'light', weightKg: 80,
-    })
-    // (1.375 - 1) - (1.2 - 1) = 0.175 — light should be higher
-    expect(b.activityKcal).toBeGreaterThan(a.activityKcal)
+    expect(result.total).toBe(result.baseKcal + result.stepsKcal + result.workoutsKcal)
   })
 })
