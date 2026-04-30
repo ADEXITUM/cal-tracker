@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { onMounted, computed, ref } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDayStore } from '@/stores/day'
+import { daysApi } from '@/api/days'
 import { useSwipe } from '@/composables/useSwipe'
+import type { DayResource } from '@/types/api'
 import KcalRing from '@/components/charts/KcalRing.vue'
 import AModeBadge from '@/components/ui/AModeBadge.vue'
 import ACard from '@/components/ui/ACard.vue'
@@ -25,6 +27,27 @@ const showAddSteps = ref(false)
 const showAddWorkout = ref(false)
 const showModeExplainer = ref(false)
 
+const prevDayData = ref<DayResource | null>(null)
+
+function prevDate(iso: string): string {
+  const d = new Date(iso + 'T12:00:00')
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().slice(0, 10)
+}
+
+async function fetchPrevDay(date: string) {
+  try {
+    const res = await daysApi.get(prevDate(date))
+    prevDayData.value = res.data
+  } catch {
+    prevDayData.value = null
+  }
+}
+
+function fmtDelta(val: number): string {
+  return (val > 0 ? '+' : '') + val
+}
+
 const dateParam = computed(() => (route.params.date as string) || new Date().toISOString().slice(0, 10))
 
 const displayDate = computed(() => {
@@ -37,6 +60,11 @@ const displayDate = computed(() => {
 
 onMounted(async () => {
   await day.setDate(dateParam.value)
+  void fetchPrevDay(dateParam.value)
+})
+
+watch(dateParam, (date) => {
+  void fetchPrevDay(date)
 })
 
 useSwipe({
@@ -70,8 +98,10 @@ function daysBetween(fromIso: string, toIso: string): number {
 const macroCards = computed(() => {
   const totals = day.data?.totals
   const goal = day.data?.goal
-  const make = (label: string, current: number, goalVal?: number) => {
+  const prev = prevDayData.value?.totals
+  const make = (label: string, current: number, goalVal?: number, prevVal?: number) => {
     const pct = goalVal ? Math.min(150, Math.round((current / goalVal) * 100)) : 0
+    const delta = prevVal != null ? Math.round((current - prevVal) * 10) / 10 : null
     return {
       key: label,
       label,
@@ -79,25 +109,32 @@ const macroCards = computed(() => {
       goal: goalVal,
       percent: Math.min(100, pct),
       onTarget: pct >= 90 && pct <= 110,
+      delta,
     }
   }
   return [
-    make('Белки', totals?.proteinG ?? 0, goal?.proteinG),
-    make('Жиры', totals?.fatG ?? 0, goal?.fatG),
-    make('Углеводы', totals?.carbsG ?? 0, goal?.carbsG),
+    make('Белки', totals?.proteinG ?? 0, goal?.proteinG, prev?.proteinG),
+    make('Жиры', totals?.fatG ?? 0, goal?.fatG, prev?.fatG),
+    make('Углеводы', totals?.carbsG ?? 0, goal?.carbsG, prev?.carbsG),
   ]
 })
 
 const measurementCells = computed(() => {
   const m = day.data?.measurements[0]
-  const cells: { label: string; value: string }[] = []
-  if (m?.weightKg)   cells.push({ label: 'кг',        value: String(m.weightKg) })
-  if (m?.bodyFatPct) cells.push({ label: '% жира',    value: String(m.bodyFatPct) })
-  if (m?.waistCm)    cells.push({ label: 'см талия',  value: String(m.waistCm) })
-  if (m?.chestCm)    cells.push({ label: 'см грудь',  value: String(m.chestCm) })
-  if (m?.hipsCm)     cells.push({ label: 'см бёдра',  value: String(m.hipsCm) })
-  if (m?.bicepsCm)   cells.push({ label: 'см бицепс', value: String(m.bicepsCm) })
-  return cells
+  const p = prevDayData.value?.measurements[0]
+  const cell = (label: string, value: number | null | undefined, prevValue?: number | null) => {
+    if (!value) return null
+    const delta = prevValue != null ? Math.round((value - prevValue) * 10) / 10 : null
+    return { label, value: String(value), delta }
+  }
+  return [
+    cell('кг',        m?.weightKg,   p?.weightKg),
+    cell('% жира',    m?.bodyFatPct, p?.bodyFatPct),
+    cell('см талия',  m?.waistCm,    p?.waistCm),
+    cell('см грудь',  m?.chestCm,    p?.chestCm),
+    cell('см бёдра',  m?.hipsCm,     p?.hipsCm),
+    cell('см бицепс', m?.bicepsCm,   p?.bicepsCm),
+  ].filter(Boolean) as { label: string; value: string; delta: number | null }[]
 })
 
 const sprintChip = computed(() => {
@@ -151,6 +188,17 @@ const sprintChip = computed(() => {
             :current="day.data.totals.kcal"
             :goal="day.data.goal?.kcal ?? 0"
           />
+          <p
+            v-if="prevDayData && day.data.totals.kcal !== undefined"
+            class="text-xs"
+            :style="{
+              color: (day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0)) === 0
+                ? 'var(--color-text-3)'
+                : (day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0)) > 0
+                  ? 'var(--color-red)'
+                  : 'var(--color-accent)'
+            }"
+          >{{ fmtDelta(Math.round(day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0))) }} ккал vs вчера</p>
           <AModeBadge
             v-if="day.data.mode"
             :code="day.data.mode.code"
@@ -176,6 +224,11 @@ const sprintChip = computed(() => {
             <p v-if="macro.goal" class="text-xs mt-0.5" style="color: var(--color-text-3)">
               / {{ macro.goal }} г
             </p>
+            <p
+              v-if="macro.delta !== null"
+              class="text-[10px] mt-0.5"
+              :style="{ color: macro.delta === 0 ? 'var(--color-text-3)' : macro.delta > 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
+            >{{ fmtDelta(macro.delta) }} г</p>
             <div
               v-if="macro.goal"
               class="mt-2 h-1.5 rounded-full overflow-hidden"
@@ -243,6 +296,11 @@ const sprintChip = computed(() => {
             <div v-for="m in measurementCells" :key="m.label" class="flex items-baseline gap-1.5">
               <span class="font-mono text-xl font-light" style="color: var(--color-text)">{{ m.value }}</span>
               <span class="text-xs" style="color: var(--color-text-3)">{{ m.label }}</span>
+              <span
+                v-if="m.delta !== null"
+                class="text-[10px]"
+                :style="{ color: m.delta === 0 ? 'var(--color-text-3)' : m.delta > 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
+              >{{ fmtDelta(m.delta) }}</span>
             </div>
           </div>
         </div>
@@ -263,12 +321,23 @@ const sprintChip = computed(() => {
           <div v-if="(day.data.dayEntry?.steps ?? 0) === 0" class="text-sm py-1" style="color: var(--color-text-3)">
             Шаги не записаны
           </div>
-          <div v-else class="flex items-baseline gap-3">
+          <div v-else class="flex items-baseline gap-3 flex-wrap">
             <div class="flex items-baseline gap-1.5">
               <span class="font-mono text-2xl font-light" style="color: var(--color-text)">
                 {{ day.data.dayEntry!.steps!.toLocaleString('ru-RU') }}
               </span>
               <span class="text-xs" style="color: var(--color-text-3)">шагов</span>
+              <span
+                v-if="prevDayData?.dayEntry?.steps != null"
+                class="text-[10px]"
+                :style="{
+                  color: (day.data.dayEntry!.steps! - prevDayData.dayEntry!.steps!) === 0
+                    ? 'var(--color-text-3)'
+                    : (day.data.dayEntry!.steps! - prevDayData.dayEntry!.steps!) > 0
+                      ? 'var(--color-accent)'
+                      : 'var(--color-red)'
+                }"
+              >{{ fmtDelta(day.data.dayEntry!.steps! - prevDayData.dayEntry!.steps!) }}</span>
             </div>
             <span style="color: var(--color-text-3)">·</span>
             <div class="flex items-baseline gap-1.5">

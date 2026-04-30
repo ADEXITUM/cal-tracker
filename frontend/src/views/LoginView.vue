@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ValidationError } from '@/api/client'
+import { NetworkError, ValidationError } from '@/api/client'
 import { isNavigationFailure } from 'vue-router'
 import AButton from '@/components/ui/AButton.vue'
 import AInput from '@/components/ui/AInput.vue'
@@ -27,6 +27,8 @@ async function submit() {
     if (isNavigationFailure(e)) return
     if (e instanceof ValidationError) {
       Object.entries(e.errors).forEach(([k, v]) => { errors.value[k] = v[0] })
+    } else if (e instanceof NetworkError || !navigator.onLine) {
+      globalError.value = 'Нет соединения. Проверьте интернет и попробуйте ещё раз.'
     } else {
       globalError.value = 'Не удалось войти. Попробуйте ещё раз.'
     }

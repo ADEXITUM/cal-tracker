@@ -197,7 +197,7 @@ void auth // keep import for later if needed
         class="text-xs p-3 rounded-[var(--radius-sm)] flex flex-col gap-1"
         style="background: var(--color-red-soft); color: var(--color-text-2); border: 1px solid var(--color-red)"
       >
-        <p style="color: var(--color-red); font-weight: 500">Цель перекрывается с другими</p>
+        <p style="color: var(--color-red); font-weight: 500">Цель перекликается с другими</p>
         <p class="mt-0.5" style="color: var(--color-text-2)">
           На каждую дату может быть только одна цель. Сначала завершите или измените даты:
         </p>

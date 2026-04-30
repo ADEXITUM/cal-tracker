@@ -15,6 +15,7 @@ const goals = useGoalsStore()
 const showEdit = ref(false)
 const editing = ref<Goal | null>(null)
 const tdeeKcal = ref(0)
+const tdeeReady = ref(false)
 
 onMounted(async () => {
   await Promise.all([goals.fetchAll(), bootstrapTdee()])
@@ -37,6 +38,7 @@ async function bootstrapTdee() {
     })
     tdeeKcal.value = td.total
   } catch { /* leave at 0 */ }
+  tdeeReady.value = true
 }
 
 function openCreate() {
@@ -100,8 +102,13 @@ const sortedGoals = computed(() => goals.sorted)
         <div class="px-4 py-3 flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
+              <div
+                v-if="!tdeeReady"
+                class="h-5 w-20 rounded-full animate-pulse"
+                style="background: var(--color-surface-2)"
+              />
               <AModeBadge
-                v-if="modeFor(g)"
+                v-else-if="modeFor(g)"
                 :code="modeFor(g)!.code"
                 :label="modeFor(g)!.label"
                 :delta-kcal="modeFor(g)!.deltaKcal"
@@ -127,7 +134,7 @@ const sortedGoals = computed(() => goals.sorted)
           <button
             v-if="isActive(g) && !g.endDate"
             class="text-xs px-2 py-1 rounded-[var(--radius-sm)] flex-shrink-0"
-            style="color: var(--color-text-2); background: var(--color-surface-2)"
+            style="color: var(--color-accent); background: var(--color-surface-2)"
             @click.stop="confirmEnd(g)"
           >Завершить</button>
         </div>

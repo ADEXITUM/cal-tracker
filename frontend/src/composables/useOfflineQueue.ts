@@ -24,15 +24,18 @@ const BACKOFF_MS = [1000, 5000, 30000, 300000]
 let getToken: () => string | null = () => null
 let onSuccess: (action: QueuedAction, response: unknown) => void = () => {}
 let onTerminalFailure: (action: QueuedAction, message: string) => void = () => {}
+let onOverflow: (dropped: QueuedAction) => void = () => {}
 
 export function configureOfflineQueue(opts: {
   getToken: () => string | null
   onSuccess?: (action: QueuedAction, response: unknown) => void
   onTerminalFailure?: (action: QueuedAction, message: string) => void
+  onOverflow?: (dropped: QueuedAction) => void
 }) {
   getToken = opts.getToken
   if (opts.onSuccess) onSuccess = opts.onSuccess
   if (opts.onTerminalFailure) onTerminalFailure = opts.onTerminalFailure
+  if (opts.onOverflow) onOverflow = opts.onOverflow
 }
 
 async function load(): Promise<void> {
@@ -47,7 +50,10 @@ async function persist(): Promise<void> {
 export async function enqueue(action: Omit<QueuedAction, 'createdAt' | 'attempts' | 'lastError'>): Promise<void> {
   await ensureInitialized()
   if (queue.value.length >= MAX_QUEUE_SIZE) {
-    queue.value.shift() // drop oldest
+    const dropped = queue.value.shift()
+    if (dropped) {
+      try { onOverflow(dropped) } catch { /* noop */ }
+    }
   }
   queue.value.push({
     ...action,

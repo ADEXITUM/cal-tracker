@@ -51,6 +51,8 @@ export const useDayStore = defineStore('day', () => {
     } catch (e) {
       if (cached) {
         // Silently keep cached view — already rendered
+      } else if (e instanceof NetworkError || !navigator.onLine) {
+        error.value = 'Этот день ещё не открывался онлайн. Подключитесь к интернету.'
       } else {
         error.value = 'Не удалось загрузить данные'
       }
