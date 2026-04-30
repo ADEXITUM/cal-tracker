@@ -32,6 +32,7 @@ const showModeExplainer = ref(false)
 const activeTab = ref<'goal' | 'balance'>('goal')
 
 const prevDayData = ref<DayResource | null>(null)
+const prevDayDate = ref<string | null>(null)
 
 function prevDate(iso: string): string {
   const d = new Date(iso + 'T12:00:00')
@@ -41,15 +42,33 @@ function prevDate(iso: string): string {
 
 async function fetchPrevDay(date: string) {
   try {
-    const res = await daysApi.get(prevDate(date))
+    // Find the most recent prior day that actually has data
+    const from = new Date(new Date(date + 'T12:00:00').getTime() - 60 * 86400000).toISOString().slice(0, 10)
+    const listRes = await daysApi.list(from, prevDate(date))
+    const withData = listRes.data
+      .filter(d => d.date < date && (d.totals.kcal > 0 || d.weightKg !== null || d.modeCode !== null))
+      .sort((a, b) => b.date.localeCompare(a.date))
+    if (withData.length === 0) {
+      prevDayData.value = null
+      return
+    }
+    prevDayDate.value = withData[0].date
+    const res = await daysApi.get(withData[0].date)
     prevDayData.value = res.data
   } catch {
     prevDayData.value = null
+    prevDayDate.value = null
   }
 }
 
 function fmtDelta(val: number): string {
   return (val > 0 ? '+' : '') + val
+}
+
+function deltaIcon(val: number): string {
+  if (val > 0) return '▲'
+  if (val < 0) return '▼'
+  return '='
 }
 
 const dateParam = computed(() => (route.params.date as string) || new Date().toISOString().slice(0, 10))
@@ -68,6 +87,8 @@ onMounted(async () => {
 })
 
 watch(dateParam, (date) => {
+  prevDayData.value = null
+  prevDayDate.value = null
   void fetchPrevDay(date)
 })
 
@@ -225,7 +246,7 @@ const sprintChip = computed(() => {
                     ? 'var(--color-red)'
                     : 'var(--color-accent)'
               }"
-            >{{ fmtDelta(Math.round(day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0))) }} ккал vs вчера</p>
+            >{{ deltaIcon(Math.round(day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0))) }} {{ fmtDelta(Math.round(day.data.totals.kcal - (prevDayData.totals?.kcal ?? 0))) }} ккал vs {{ prevDayDate && prevDayDate === prevDate(dateParam) ? 'вчера' : formatShortDate(prevDayDate!) }}</p>
             <AModeBadge
               v-if="day.data.mode"
               :code="day.data.mode.code"
@@ -254,7 +275,7 @@ const sprintChip = computed(() => {
                 v-if="macro.delta !== null"
                 class="text-[10px] mt-0.5"
                 :style="{ color: macro.delta === 0 ? 'var(--color-text-3)' : macro.delta > 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
-              >{{ fmtDelta(macro.delta) }} г</p>
+              >{{ deltaIcon(macro.delta) }} {{ fmtDelta(macro.delta) }} г</p>
               <div
                 v-if="macro.goal"
                 class="mt-2 h-1.5 rounded-full overflow-hidden"
@@ -337,7 +358,7 @@ const sprintChip = computed(() => {
                 v-if="m.delta !== null"
                 class="text-[10px]"
                 :style="{ color: m.delta === 0 ? 'var(--color-text-3)' : m.delta > 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
-              >{{ fmtDelta(m.delta) }}</span>
+              >{{ deltaIcon(m.delta) }} {{ fmtDelta(m.delta) }}</span>
             </div>
           </div>
         </div>
@@ -374,7 +395,7 @@ const sprintChip = computed(() => {
                       ? 'var(--color-accent)'
                       : 'var(--color-red)'
                 }"
-              >{{ fmtDelta(day.data.dayEntry!.steps! - prevDayData.dayEntry!.steps!) }}</span>
+              >{{ deltaIcon(day.data.dayEntry!.steps! - prevDayData.dayEntry!.steps!) }} {{ fmtDelta(day.data.dayEntry!.steps! - prevDayData.dayEntry!.steps!) }}</span>
             </div>
             <span style="color: var(--color-text-3)">·</span>
             <div class="flex items-baseline gap-1.5">

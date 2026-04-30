@@ -59,8 +59,8 @@ async function removeAccount(uuid: string) {
       <!-- Current user -->
       <div v-if="auth.currentUser" class="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)]" style="background: var(--color-surface)">
         <div
-          class="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium text-base"
-          :style="{ background: auth.currentUser.avatarColor }"
+          class="w-10 h-10 rounded-full flex items-center justify-center font-medium text-base"
+          style="background: #FF5A1F; color: #fff"
         >
           {{ auth.currentUser.name.slice(0, 1).toUpperCase() }}
         </div>
@@ -81,8 +81,8 @@ async function removeAccount(uuid: string) {
         >
           <div class="px-4 py-2.5 flex items-center gap-3">
             <div
-              class="w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm flex-shrink-0"
-              :style="{ background: acc.avatarColor }"
+              class="w-8 h-8 rounded-full flex items-center justify-center font-medium text-sm flex-shrink-0"
+              style="background: #FF5A1F; color: #fff"
             >
               {{ acc.name.slice(0, 1).toUpperCase() }}
             </div>

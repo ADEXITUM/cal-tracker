@@ -71,13 +71,17 @@ class StatsAggregator
         $start = (float) $first->weight_kg;
         $end   = (float) $last->weight_kg;
 
-        // Linear regression slope on the whole range
-        $slopePerDay = self::slopePerDay(
-            $sorted->map(fn ($m) => [
-                'ts' => $m->measured_at->timestamp,
-                'v'  => (float) $m->weight_kg,
-            ])->values()->toArray(),
-        );
+        // Linear regression slope — meaningful only with ≥5 days spanning ≥7 days
+        $rows = $sorted->map(fn ($m) => [
+            'ts' => $m->measured_at->timestamp,
+            'v'  => (float) $m->weight_kg,
+        ])->values()->toArray();
+        $spanDays = count($rows) >= 2
+            ? ($rows[count($rows) - 1]['ts'] - $rows[0]['ts']) / 86400
+            : 0;
+        $slopePerDay = (count($rows) >= 5 && $spanDays >= 7)
+            ? self::slopePerDay($rows)
+            : null;
         $trend = $slopePerDay !== null ? round($slopePerDay * 7, 2) : null;
 
         return [
