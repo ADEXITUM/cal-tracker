@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { daysApi } from '@/api/days'
 import { NetworkError } from '@/api/client'
 import { enqueue as enqueueOffline } from '@/composables/useOfflineQueue'
 import { readCachedDay, writeCachedDay } from '@/lib/dayCache'
 import { useAuthStore } from '@/stores/auth'
 import { useDishesStore } from '@/stores/dishes'
+import { classifyMode } from '@/lib/modes'
 import type { DayResource, Meal, Measurement, Workout } from '@/types/api'
 
 function uuid(): string {
@@ -125,6 +126,8 @@ export const useDayStore = defineStore('day', () => {
     try {
       const res = await daysApi.addMeal(currentDate.value, payload, idempotencyKey)
       replaceMeal(idempotencyKey, res.data)
+      // Refresh insights/mode from server in background (non-blocking)
+      void fetch()
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -162,6 +165,7 @@ export const useDayStore = defineStore('day', () => {
     }
     try {
       await daysApi.deleteMeal(uuidStr)
+      void fetch()
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -240,14 +244,19 @@ export const useDayStore = defineStore('day', () => {
       durationMin: payload.durationMin as number ?? null,
       kcalBurned: payload.kcalBurned as number ?? null,
     }
-    if (data.value) data.value.workouts.push(optimistic)
+    if (data.value) {
+      data.value.workouts.push(optimistic)
+      updateWorkoutsTdee()
+    }
 
     try {
       const res = await daysApi.addWorkout(currentDate.value, payload, idempotencyKey)
       if (data.value) {
         const idx = data.value.workouts.findIndex(w => w.uuid === idempotencyKey)
         if (idx >= 0) data.value.workouts.splice(idx, 1, res.data)
+        updateWorkoutsTdee()
       }
+      void fetch()
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -259,6 +268,7 @@ export const useDayStore = defineStore('day', () => {
       } else {
         if (data.value) {
           data.value.workouts = data.value.workouts.filter(w => w.uuid !== idempotencyKey)
+          updateWorkoutsTdee()
         }
         throw e
       }
@@ -266,9 +276,13 @@ export const useDayStore = defineStore('day', () => {
   }
 
   async function deleteWorkout(uuidStr: string) {
-    if (data.value) data.value.workouts = data.value.workouts.filter(w => w.uuid !== uuidStr)
+    if (data.value) {
+      data.value.workouts = data.value.workouts.filter(w => w.uuid !== uuidStr)
+      updateWorkoutsTdee()
+    }
     try {
       await daysApi.deleteWorkout(uuidStr)
+      void fetch()
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -292,6 +306,24 @@ export const useDayStore = defineStore('day', () => {
       fatG:      Math.round(meals.reduce((s, m) => s + m.fatG, 0) * 10) / 10,
       carbsG:    Math.round(meals.reduce((s, m) => s + m.carbsG, 0) * 10) / 10,
     }
+    updateMode()
+  }
+
+  function updateWorkoutsTdee() {
+    if (!data.value?.tdee) return
+    const workoutsKcal = data.value.workouts.reduce((s, w) => s + (w.kcalBurned ?? 0), 0)
+    data.value.tdee = {
+      ...data.value.tdee,
+      workoutsKcal,
+      total: data.value.tdee.baseKcal + data.value.tdee.stepsKcal + workoutsKcal,
+    }
+    updateMode()
+  }
+
+  function updateMode() {
+    if (!data.value?.goal) return
+    const m = classifyMode(data.value.goal.kcal, data.value.totals.kcal)
+    data.value.mode = m
   }
 
   function goTo(date: string) { setDate(date) }
