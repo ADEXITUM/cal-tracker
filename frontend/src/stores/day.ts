@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { daysApi } from '@/api/days'
 import { NetworkError } from '@/api/client'
 import { enqueue as enqueueOffline } from '@/composables/useOfflineQueue'
