@@ -26,8 +26,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      APP_NAME: CalTracker
+      APP_NAME: DietTracker
       APP_ENV: production
+      APP_KEY: ${APP_KEY}
       APP_DEBUG: "false"
       APP_URL: ${APP_URL:-http://localhost}
       DB_CONNECTION: pgsql
