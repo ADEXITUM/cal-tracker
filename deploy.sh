@@ -25,11 +25,6 @@ done
 echo "▸ Running migrations..."
 $COMPOSE exec -T backend php artisan migrate --force
 
-echo "▸ Optimising Laravel..."
-$COMPOSE exec -T backend php artisan config:cache
-$COMPOSE exec -T backend php artisan route:cache
-$COMPOSE exec -T backend php artisan event:cache
-
 echo "▸ Services:"
 $COMPOSE ps
 
