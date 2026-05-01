@@ -36,7 +36,7 @@ services:
       DB_PORT: 5432
       DB_DATABASE: dt
       DB_USERNAME: dt
-      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_PASSWORD: ${DB_PASSWORD}
       CACHE_DRIVER: file
       SESSION_DRIVER: file
       QUEUE_CONNECTION: sync
