@@ -157,7 +157,7 @@ async function removeAccount(uuid: string) {
       </button>
 
       <p class="text-xs text-center mt-4" style="color: var(--color-text-3)">
-        Cal Tracker — v1.0
+        Кал Трекер — v1.0
       </p>
     </div>
   </div>

@@ -42,7 +42,7 @@ async function submit() {
   <div class="flex min-h-svh flex-col items-center justify-center px-4 py-12">
     <div class="w-full max-w-sm">
       <h1 class="mb-8 text-center font-mono text-3xl font-light" style="color: var(--color-accent)">
-        Cal Tracker
+        Кал Трекер
       </h1>
 
       <form class="flex flex-col gap-4" @submit.prevent="submit">

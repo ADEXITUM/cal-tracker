@@ -71,7 +71,7 @@ export default defineConfig(() => ({
       },
       manifest: {
         name: 'Кал Трекер',
-        short_name: 'Cal Tracker',
+        short_name: 'Кал Трекер',
         start_url: '/?source=pwa',
         display: 'standalone',
         theme_color: '#FAFAF7',
