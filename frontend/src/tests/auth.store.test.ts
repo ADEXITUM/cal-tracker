@@ -17,6 +17,7 @@ vi.mock('@/api/auth', () => ({
     register: vi.fn(),
     logout: vi.fn().mockResolvedValue(undefined),
     me: vi.fn(),
+    updateMe: vi.fn(),
   },
 }))
 
@@ -24,6 +25,10 @@ vi.mock('@/api/client', () => ({
   configureClient: vi.fn(),
   ValidationError: class ValidationError extends Error {
     constructor(public errors: Record<string, string[]>) { super() }
+  },
+  NetworkError: class NetworkError extends Error {},
+  ApiError: class ApiError extends Error {
+    constructor(message: string, public status: number) { super(message) }
   },
 }))
 
@@ -92,6 +97,27 @@ describe('auth store', () => {
     await auth.login('b@x.com', 'pass', 'device')
 
     expect(auth.savedAccounts).toHaveLength(2)
+  })
+
+  it('updateName syncs currentUser and saved account', async () => {
+    vi.mocked(authApi.login).mockResolvedValue({
+      data: {
+        user: { uuid: 'u1', name: 'Old', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true },
+        token: 'tok',
+      },
+    })
+    vi.mocked(authApi.updateMe).mockResolvedValue({
+      data: {
+        user: { uuid: 'u1', name: 'New', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true },
+      },
+    })
+
+    const auth = useAuthStore()
+    await auth.login('x@x.com', 'pass', 'device')
+    await auth.updateName('New')
+
+    expect(auth.currentUser?.name).toBe('New')
+    expect(auth.savedAccounts[0].name).toBe('New')
   })
 
   it('removes account', async () => {

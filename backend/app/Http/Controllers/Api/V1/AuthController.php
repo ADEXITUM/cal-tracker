@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\LoginRequest;
 use App\Http\Requests\Api\RegisterRequest;
+use App\Http\Requests\Api\UpdateMeRequest;
 use App\Http\Resources\GoalResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -73,6 +74,18 @@ class AuthController extends Controller
             'data' => [
                 'user'         => new UserResource($user),
                 'current_goal' => $currentGoal ? new GoalResource($currentGoal) : null,
+            ],
+        ]);
+    }
+
+    public function updateMe(UpdateMeRequest $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->update($request->validated());
+
+        return response()->json([
+            'data' => [
+                'user' => new UserResource($user->load('profile')),
             ],
         ]);
     }

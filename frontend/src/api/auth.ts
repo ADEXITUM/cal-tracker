@@ -9,6 +9,10 @@ interface MeResponse {
   data: { user: User; currentGoal: Goal | null }
 }
 
+interface UpdateMeResponse {
+  data: { user: User }
+}
+
 export const authApi = {
   register: (payload: { name: string; email: string; password: string; deviceName: string }) =>
     api.post<AuthResponse>('/auth/register', payload),
@@ -19,4 +23,6 @@ export const authApi = {
   logout: () => api.post<void>('/auth/logout'),
 
   me: () => api.get<MeResponse>('/auth/me'),
+
+  updateMe: (payload: { name: string }) => api.put<UpdateMeResponse>('/auth/me', payload),
 }

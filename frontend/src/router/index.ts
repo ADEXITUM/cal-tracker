@@ -54,6 +54,12 @@ const router = createRouter({
       meta: { auth: true },
     },
     {
+      path: '/settings/profile',
+      name: 'profile',
+      component: () => import('@/views/ProfileEditView.vue'),
+      meta: { auth: true, hideNav: true },
+    },
+    {
       path: '/settings/how-it-works',
       name: 'how-it-works',
       component: () => import('@/views/HowItWorksView.vue'),

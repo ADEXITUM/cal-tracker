@@ -11,6 +11,15 @@ export class NetworkError extends Error {
   }
 }
 
+/** Generic 4xx (excluding 401/422). Carries the HTTP status so callers
+ *  can branch on, e.g., 404 to redirect to setup. */
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 function toCamel(s: string): string {
   return s.replace(/_([a-z0-9])/g, (_, c: string) => (/[0-9]/.test(c) ? c : c.toUpperCase()))
 }
@@ -90,7 +99,7 @@ async function request<T>(
     if (res.status >= 500) {
       throw new NetworkError(json.message ?? `HTTP ${res.status}`)
     }
-    throw new Error(json.message ?? `HTTP ${res.status}`)
+    throw new ApiError(json.message ?? `HTTP ${res.status}`, res.status)
   }
 
   return camelizeResponse<T>(json)

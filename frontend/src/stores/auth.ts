@@ -161,6 +161,16 @@ export const useAuthStore = defineStore('auth', () => {
     lsSet(LS_ACCOUNTS_KEY, savedAccounts.value)
   }
 
+  async function updateName(name: string): Promise<void> {
+    const res = await authApi.updateMe({ name })
+    if (currentUser.value) currentUser.value = { ...currentUser.value, ...res.data.user }
+    const idx = savedAccounts.value.findIndex(a => a.uuid === res.data.user.uuid)
+    if (idx >= 0) {
+      savedAccounts.value[idx] = { ...savedAccounts.value[idx], name: res.data.user.name }
+      _persistAccounts()
+    }
+  }
+
   _wire()
 
   return {
@@ -176,5 +186,6 @@ export const useAuthStore = defineStore('auth', () => {
     switchTo,
     removeAccount,
     unloadCurrentSession,
+    updateName,
   }
 })

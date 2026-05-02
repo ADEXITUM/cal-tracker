@@ -99,4 +99,42 @@ class AuthTest extends TestCase
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
     }
+
+    public function test_user_can_update_own_name(): void
+    {
+        $user = User::factory()->create(['name' => 'Old Name']);
+
+        $this->actingAs($user)
+            ->putJson('/api/v1/auth/me', ['name' => 'New Name'])
+            ->assertOk()
+            ->assertJsonPath('data.user.name', 'New Name');
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'name' => 'New Name']);
+    }
+
+    public function test_update_me_requires_name(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->putJson('/api/v1/auth/me', [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['name']);
+    }
+
+    public function test_update_me_does_not_change_email(): void
+    {
+        $user = User::factory()->create(['email' => 'orig@example.com']);
+
+        $this->actingAs($user)
+            ->putJson('/api/v1/auth/me', ['name' => 'X', 'email' => 'evil@example.com'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'email' => 'orig@example.com']);
+    }
+
+    public function test_update_me_requires_auth(): void
+    {
+        $this->putJson('/api/v1/auth/me', ['name' => 'x'])->assertUnauthorized();
+    }
 }

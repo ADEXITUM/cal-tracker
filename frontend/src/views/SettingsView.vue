@@ -16,6 +16,7 @@ const themeOptions = [
 ] as const
 
 const sections = [
+  { label: 'Профиль', route: '/settings/profile', hint: 'Имя, пол, дата рождения, рост' },
   { label: 'Блюда', route: '/dishes', hint: 'Свои продукты и блюда' },
   { label: 'Как это работает', route: '/settings/how-it-works', hint: 'Расход, цель, режимы — что откуда' },
 ] as const
@@ -56,8 +57,14 @@ async function removeAccount(uuid: string) {
     </header>
 
     <div class="p-4 pb-24 flex flex-col gap-3">
-      <!-- Current user -->
-      <div v-if="auth.currentUser" class="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)]" style="background: var(--color-surface)">
+      <!-- Current user (tap → edit profile) -->
+      <button
+        v-if="auth.currentUser"
+        type="button"
+        class="flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] text-left transition-colors active:scale-[0.99]"
+        style="background: var(--color-surface)"
+        @click="router.push('/settings/profile')"
+      >
         <div
           class="w-10 h-10 rounded-full flex items-center justify-center font-medium text-base"
           style="background: #FF5A1F; color: #fff"
@@ -68,7 +75,8 @@ async function removeAccount(uuid: string) {
           <p class="text-sm font-semibold truncate" style="color: var(--color-text)">{{ auth.currentUser.name }}</p>
           <p class="text-xs truncate" style="color: var(--color-text-3)">{{ auth.currentUser.email }}</p>
         </div>
-      </div>
+        <span style="color: var(--color-text-3)">›</span>
+      </button>
 
       <!-- Other saved accounts -->
       <div v-if="otherAccounts.length > 0" class="flex flex-col gap-2 mt-2">
