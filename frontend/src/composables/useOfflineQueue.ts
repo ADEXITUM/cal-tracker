@@ -12,6 +12,9 @@ export interface QueuedAction {
   createdAt: number
   attempts: number
   lastError: string | null
+  /** UUID of the user who enqueued this action. Empty string for actions
+   *  written by an older app version that didn't track ownership. */
+  userUuid: string
 }
 
 const queue = ref<QueuedAction[]>([])
@@ -22,17 +25,20 @@ let initialized = false
 const BACKOFF_MS = [1000, 5000, 30000, 300000]
 
 let getToken: () => string | null = () => null
+let getCurrentUserUuid: () => string | null = () => null
 let onSuccess: (action: QueuedAction, response: unknown) => void = () => {}
 let onTerminalFailure: (action: QueuedAction, message: string) => void = () => {}
 let onOverflow: (dropped: QueuedAction) => void = () => {}
 
 export function configureOfflineQueue(opts: {
   getToken: () => string | null
+  getCurrentUserUuid?: () => string | null
   onSuccess?: (action: QueuedAction, response: unknown) => void
   onTerminalFailure?: (action: QueuedAction, message: string) => void
   onOverflow?: (dropped: QueuedAction) => void
 }) {
   getToken = opts.getToken
+  if (opts.getCurrentUserUuid) getCurrentUserUuid = opts.getCurrentUserUuid
   if (opts.onSuccess) onSuccess = opts.onSuccess
   if (opts.onTerminalFailure) onTerminalFailure = opts.onTerminalFailure
   if (opts.onOverflow) onOverflow = opts.onOverflow
@@ -47,7 +53,9 @@ async function persist(): Promise<void> {
   try { await idbSet(QUEUE_KEY, queue.value) } catch { /* IDB unavailable */ }
 }
 
-export async function enqueue(action: Omit<QueuedAction, 'createdAt' | 'attempts' | 'lastError'>): Promise<void> {
+export async function enqueue(
+  action: Omit<QueuedAction, 'createdAt' | 'attempts' | 'lastError' | 'userUuid'> & { userUuid?: string },
+): Promise<void> {
   await ensureInitialized()
   if (queue.value.length >= MAX_QUEUE_SIZE) {
     const dropped = queue.value.shift()
@@ -57,6 +65,7 @@ export async function enqueue(action: Omit<QueuedAction, 'createdAt' | 'attempts
   }
   queue.value.push({
     ...action,
+    userUuid: action.userUuid ?? getCurrentUserUuid() ?? '',
     createdAt: Date.now(),
     attempts: 0,
     lastError: null,
@@ -74,14 +83,21 @@ export async function processQueue(): Promise<void> {
   processing.value = true
   try {
     while (queue.value.length > 0 && isOnline.value) {
-      const action = queue.value[0]
+      // Find the next action that belongs to the currently signed-in user.
+      // Anything else (a previous user's pending writes, an action enqueued
+      // before logout) stays in the queue until that user signs back in —
+      // never sent under a different account's token.
+      const currentUuid = getCurrentUserUuid() ?? ''
+      if (!currentUuid) break
+      const action = queue.value.find(a => a.userUuid === '' || a.userUuid === currentUuid)
+      if (!action) break
       const result = await sendOnce(action)
       if (result.kind === 'success') {
-        queue.value.shift()
+        queue.value = queue.value.filter(a => a.id !== action.id)
         await persist()
         try { onSuccess(action, result.response) } catch { /* noop */ }
       } else if (result.kind === 'permanent') {
-        queue.value.shift()
+        queue.value = queue.value.filter(a => a.id !== action.id)
         await persist()
         try { onTerminalFailure(action, result.message) } catch { /* noop */ }
       } else {

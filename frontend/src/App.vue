@@ -16,7 +16,9 @@ const showNav = computed(() => auth.isAuthenticated && route.meta.hideNav !== tr
 <template>
   <RouterView v-slot="{ Component, route: r }">
     <Transition name="page" mode="out-in">
-      <component :is="Component" :key="r.path" />
+      <!-- key by route name (not path) so navigating between dates within
+           /day/:date doesn't remount DayView and re-fetch from scratch -->
+      <component :is="Component" :key="r.name as string" />
     </Transition>
   </RouterView>
   <SyncIndicator v-if="auth.isAuthenticated" />

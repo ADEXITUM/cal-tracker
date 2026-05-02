@@ -58,6 +58,12 @@ export const useGoalsStore = defineStore('goals', () => {
     await update(uuid, { ...goal, endDate })
   }
 
+  function reset() {
+    items.value = []
+    loading.value = false
+    loaded.value = false
+  }
+
   return {
     items,
     sorted,
@@ -65,6 +71,7 @@ export const useGoalsStore = defineStore('goals', () => {
     loaded,
     activeGoal,
     fetchAll,
+    reset,
     create,
     update,
     remove,

@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, watch } from 'vue'
 import { createPinia } from 'pinia'
 import router from '@/router'
 import { useAuthStore } from '@/stores/auth'
@@ -24,6 +24,7 @@ const auth = useAuthStore()
 // the day store after a queued action lands on the server.
 configureOfflineQueue({
   getToken: () => auth.currentToken,
+  getCurrentUserUuid: () => auth.currentUser?.uuid ?? null,
   onSuccess: () => {
     const day = useDayStore()
     void day.fetch()
@@ -44,6 +45,13 @@ auth.restoreFromIdb().finally(() => {
   // Kick the offline queue at cold start: if the user closed the tab with
   // pending actions and re-opens online, we want to flush them right away.
   void processQueue()
+
+  // Re-kick whenever the active account changes — the queue is filtered
+  // by userUuid, so the next user's pending writes (if any) only flush
+  // once they're signed in.
+  watch(() => auth.currentUser?.uuid, (uuid) => {
+    if (uuid) void processQueue()
+  })
 
   // Try to flush again whenever the tab returns to the foreground —
   // 'online' fires only on connection-state changes, so a backgrounded

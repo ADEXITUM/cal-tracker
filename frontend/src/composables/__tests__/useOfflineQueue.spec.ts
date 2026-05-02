@@ -24,7 +24,7 @@ describe('useOfflineQueue', () => {
     vi.stubGlobal('fetch', fetchSpy)
 
     const mod = await loadModule()
-    mod.configureOfflineQueue({ getToken: () => 'tok' })
+    mod.configureOfflineQueue({ getToken: () => 'tok', getCurrentUserUuid: () => 'u-1' })
     await mod.enqueue({
       id: 'a-1',
       method: 'POST',
@@ -54,7 +54,7 @@ describe('useOfflineQueue', () => {
 
     const onFail = vi.fn()
     const mod = await loadModule()
-    mod.configureOfflineQueue({ getToken: () => 't', onTerminalFailure: onFail })
+    mod.configureOfflineQueue({ getToken: () => 't', getCurrentUserUuid: () => 'u-1', onTerminalFailure: onFail })
 
     await mod.enqueue({ id: 'b-1', method: 'POST', url: '/x', body: {} })
     await new Promise(r => setTimeout(r, 10))
@@ -87,7 +87,7 @@ describe('useOfflineQueue', () => {
     vi.stubGlobal('fetch', fetchSpy)
 
     const mod = await loadModule()
-    mod.configureOfflineQueue({ getToken: () => 't' })
+    mod.configureOfflineQueue({ getToken: () => 't', getCurrentUserUuid: () => 'u-1' })
 
     await mod.enqueue({ id: 'd-1', method: 'POST', url: '/x', body: {} })
     // Wait long enough for the very first backoff (1s) attempt cycle
@@ -98,6 +98,33 @@ describe('useOfflineQueue', () => {
     expect(queue.value[0].attempts).toBeGreaterThanOrEqual(1)
     expect(queue.value[0].lastError).toMatch(/HTTP 500/)
   }, 10000)
+
+  it('does not send actions belonging to a different user', async () => {
+    vi.stubGlobal('navigator', { onLine: true } as Navigator)
+    const fetchSpy = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const mod = await loadModule()
+    let activeUuid: string | null = 'u-A'
+    mod.configureOfflineQueue({ getToken: () => 't', getCurrentUserUuid: () => activeUuid })
+
+    // Enqueue under user A, then "switch" before processQueue runs the next round.
+    await mod.enqueue({ id: 'A-1', method: 'POST', url: '/x', body: {} })
+    await new Promise(r => setTimeout(r, 5))
+    expect(fetchSpy).toHaveBeenCalledTimes(1) // A's action sent under A
+
+    // Switch to B with no pending actions belonging to B; A's pending writes
+    // (none left) shouldn't leak. Simulate by enqueuing under A while B is active:
+    activeUuid = 'u-B'
+    // Force-add an action with userUuid='u-A' through the public enqueue;
+    // the queue's own guard should keep it pinned.
+    await mod.enqueue({ id: 'A-2', method: 'POST', url: '/x', body: {}, userUuid: 'u-A' })
+    await new Promise(r => setTimeout(r, 20))
+    // Still only the first call (A-1). A-2 stays queued waiting for u-A.
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const { queue } = mod.useOfflineQueue()
+    expect(queue.value.find(a => a.id === 'A-2')).toBeDefined()
+  })
 
   it('caps queue at MAX_QUEUE_SIZE by dropping oldest', async () => {
     vi.stubGlobal('navigator', { onLine: false } as Navigator) // keep them in queue

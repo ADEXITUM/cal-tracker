@@ -4,6 +4,25 @@ import { configureClient } from '@/api/client'
 import { authApi } from '@/api/auth'
 import type { SavedAccount, User } from '@/types/api'
 
+/**
+ * Wipe all per-user Pinia state. Called on logout / account switch /
+ * unload — otherwise stale meals, dishes and goals from the previous user
+ * leak into the next session's UI until the network reply arrives.
+ *
+ * Stores are imported lazily because they import auth themselves
+ * (circular).
+ */
+async function resetUserStores(): Promise<void> {
+  const [{ useDayStore }, { useDishesStore }, { useGoalsStore }] = await Promise.all([
+    import('@/stores/day'),
+    import('@/stores/dishes'),
+    import('@/stores/goals'),
+  ])
+  useDayStore().reset()
+  useDishesStore().reset()
+  useGoalsStore().reset()
+}
+
 const LS_ACCOUNTS_KEY = 'dt_saved_accounts'
 
 function lsGet<T>(key: string): T | null {
@@ -70,6 +89,7 @@ export const useAuthStore = defineStore('auth', () => {
     const token = currentToken.value
     currentUser.value = null
     currentToken.value = null
+    await resetUserStores()
     if (user) {
       savedAccounts.value = savedAccounts.value.filter(a => a.uuid !== user.uuid)
       _persistAccounts()
@@ -84,6 +104,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function switchTo(uuid: string): Promise<void> {
     const account = savedAccounts.value.find(a => a.uuid === uuid)
     if (!account) return
+    // Wipe previous user's state BEFORE swapping the token so that views
+    // mounted after the switch don't render the previous user's data.
+    await resetUserStores()
+    currentUser.value = null
     currentToken.value = account.token
     try {
       const res = await authApi.me()
@@ -103,6 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
   function unloadCurrentSession(): void {
     currentUser.value = null
     currentToken.value = null
+    void resetUserStores()
   }
 
   async function removeAccount(uuid: string): Promise<void> {
@@ -111,6 +136,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (currentUser.value?.uuid === uuid) {
       currentUser.value = null
       currentToken.value = null
+      await resetUserStores()
     }
   }
 

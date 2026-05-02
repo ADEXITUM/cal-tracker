@@ -6,19 +6,25 @@ import type { Dish } from '@/types/api'
 export const useDishesStore = defineStore('dishes', () => {
   const items = ref<Dish[]>([])
   const loading = ref(false)
-  let cachedAt = 0
+  const cachedAt = ref(0)
   const TTL = 5 * 60 * 1000
 
   async function fetchAll(force = false) {
-    if (!force && items.value.length && Date.now() - cachedAt < TTL) return
+    if (!force && items.value.length && Date.now() - cachedAt.value < TTL) return
     loading.value = true
     try {
       const res = await dishesApi.list()
       items.value = res.data
-      cachedAt = Date.now()
+      cachedAt.value = Date.now()
     } finally {
       loading.value = false
     }
+  }
+
+  function reset() {
+    items.value = []
+    cachedAt.value = 0
+    loading.value = false
   }
 
   function search(query: string): Dish[] {
@@ -38,5 +44,5 @@ export const useDishesStore = defineStore('dishes', () => {
     items.value = items.value.filter(d => d.uuid !== uuid)
   }
 
-  return { items, loading, fetchAll, search, create, remove }
+  return { items, loading, fetchAll, reset, search, create, remove }
 })

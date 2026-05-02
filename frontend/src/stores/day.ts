@@ -30,36 +30,72 @@ export const useDayStore = defineStore('day', () => {
     await fetch()
   }
 
-  async function fetch() {
+  /**
+   * Fetch the day from the server with read-through IDB cache.
+   *
+   * `skipCache` is true when called right after an optimistic mutation —
+   * reading the cache there would clobber the freshly-pushed item with a
+   * stale snapshot until the server response lands (visible flicker).
+   */
+  async function fetch({ skipCache = false }: { skipCache?: boolean } = {}) {
     error.value = null
     const auth = useAuthStore()
     const userUuid = auth.currentUser?.uuid ?? ''
+    const dateAtStart = currentDate.value
 
-    // 1) Read-through: hydrate from cache instantly so UI is never blank
-    const cached = await readCachedDay(userUuid, currentDate.value)
-    if (cached) {
-      data.value = cached
-      loading.value = false
-    } else {
+    let cached: DayResource | null = null
+    if (!skipCache) {
+      cached = await readCachedDay(userUuid, dateAtStart)
+      // The user (or date) might have switched while we were awaiting IDB.
+      // Drop the result if the request is no longer current.
+      if (auth.currentUser?.uuid !== userUuid || currentDate.value !== dateAtStart) return
+      if (cached) {
+        data.value = cached
+        loading.value = false
+      } else {
+        loading.value = true
+      }
+    } else if (data.value === null) {
       loading.value = true
     }
 
-    // 2) Always revalidate in background
     try {
-      const res = await daysApi.get(currentDate.value)
+      const res = await daysApi.get(dateAtStart)
+      if (auth.currentUser?.uuid !== userUuid || currentDate.value !== dateAtStart) return
       data.value = res.data
-      await writeCachedDay(userUuid, currentDate.value, res.data)
+      await writeCachedDay(userUuid, dateAtStart, res.data)
     } catch (e) {
-      if (cached) {
-        // Silently keep cached view — already rendered
+      if (auth.currentUser?.uuid !== userUuid || currentDate.value !== dateAtStart) return
+      if (cached || data.value) {
+        // Silently keep current view — already rendered
       } else if (e instanceof NetworkError || !navigator.onLine) {
         error.value = 'Этот день ещё не открывался онлайн. Подключитесь к интернету.'
       } else {
         error.value = 'Не удалось загрузить данные'
       }
     } finally {
-      loading.value = false
+      if (auth.currentUser?.uuid === userUuid && currentDate.value === dateAtStart) {
+        loading.value = false
+      }
     }
+  }
+
+  /** Persist current optimistic state of the day to IDB so a reload
+   *  before the server reply doesn't show a stale view. */
+  async function persistOptimistic() {
+    if (!data.value) return
+    const auth = useAuthStore()
+    const userUuid = auth.currentUser?.uuid ?? ''
+    if (!userUuid) return
+    await writeCachedDay(userUuid, currentDate.value, data.value)
+  }
+
+  /** Drop in-memory state. Call on logout or account switch. */
+  function reset() {
+    currentDate.value = todayString()
+    data.value = null
+    loading.value = false
+    error.value = null
   }
 
   async function updateDayEntry(payload: Partial<{ steps: number }>) {
@@ -67,10 +103,11 @@ export const useDayStore = defineStore('day', () => {
     if (data.value) {
       data.value.dayEntry = { ...(data.value.dayEntry ?? {}), ...payload } as DayResource['dayEntry']
     }
+    void persistOptimistic()
     try {
       await daysApi.update(currentDate.value, payload)
       // Refetch to recompute TDEE/mode (steps affect total burn).
-      await fetch()
+      await fetch({ skipCache: true })
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -122,12 +159,15 @@ export const useDayStore = defineStore('day', () => {
     if (data.value) {
       data.value.meals.push(optimistic)
       updateTotals()
+      void persistOptimistic()
     }
     try {
       const res = await daysApi.addMeal(currentDate.value, payload, idempotencyKey)
       replaceMeal(idempotencyKey, res.data)
-      // Refresh insights/mode from server in background (non-blocking)
-      void fetch()
+      // Refresh insights/mode from server in background (non-blocking).
+      // skipCache: server response is the freshest data we have — we don't
+      // want a stale IDB read to clobber it.
+      void fetch({ skipCache: true })
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -162,10 +202,11 @@ export const useDayStore = defineStore('day', () => {
     if (data.value) {
       data.value.meals = data.value.meals.filter(m => m.uuid !== uuidStr)
       updateTotals()
+      void persistOptimistic()
     }
     try {
       await daysApi.deleteMeal(uuidStr)
-      void fetch()
+      void fetch({ skipCache: true })
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -188,6 +229,7 @@ export const useDayStore = defineStore('day', () => {
       const res = await daysApi.addMeasurement(currentDate.value, payload, idempotencyKey)
       if (data.value) {
         data.value.measurements = [res.data]
+        void persistOptimistic()
       }
     } catch (e) {
       if (e instanceof NetworkError) {
@@ -211,6 +253,7 @@ export const useDayStore = defineStore('day', () => {
             bicepsCm:   num('bicepsCm'),
           }
           data.value.measurements = [optimistic]
+          void persistOptimistic()
         }
       } else {
         throw e
@@ -219,7 +262,10 @@ export const useDayStore = defineStore('day', () => {
   }
 
   async function deleteMeasurement(uuidStr: string) {
-    if (data.value) data.value.measurements = data.value.measurements.filter(m => m.uuid !== uuidStr)
+    if (data.value) {
+      data.value.measurements = data.value.measurements.filter(m => m.uuid !== uuidStr)
+      void persistOptimistic()
+    }
     try {
       await daysApi.deleteMeasurement(uuidStr)
     } catch (e) {
@@ -231,7 +277,7 @@ export const useDayStore = defineStore('day', () => {
           body: null,
         })
       } else {
-        await fetch()
+        await fetch({ skipCache: true })
       }
     }
   }
@@ -247,6 +293,7 @@ export const useDayStore = defineStore('day', () => {
     if (data.value) {
       data.value.workouts.push(optimistic)
       updateWorkoutsTdee()
+      void persistOptimistic()
     }
 
     try {
@@ -256,7 +303,7 @@ export const useDayStore = defineStore('day', () => {
         if (idx >= 0) data.value.workouts.splice(idx, 1, res.data)
         updateWorkoutsTdee()
       }
-      void fetch()
+      void fetch({ skipCache: true })
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -279,10 +326,11 @@ export const useDayStore = defineStore('day', () => {
     if (data.value) {
       data.value.workouts = data.value.workouts.filter(w => w.uuid !== uuidStr)
       updateWorkoutsTdee()
+      void persistOptimistic()
     }
     try {
       await daysApi.deleteWorkout(uuidStr)
-      void fetch()
+      void fetch({ skipCache: true })
     } catch (e) {
       if (e instanceof NetworkError) {
         await enqueueOffline({
@@ -341,7 +389,7 @@ export const useDayStore = defineStore('day', () => {
 
   return {
     currentDate, data, loading, error,
-    setDate, fetch, goTo, goToToday, goToPrev, goToNext,
+    setDate, fetch, reset, goTo, goToToday, goToPrev, goToNext,
     addMeal, deleteMeal,
     addMeasurement, deleteMeasurement, updateDayEntry,
     addWorkout, deleteWorkout,

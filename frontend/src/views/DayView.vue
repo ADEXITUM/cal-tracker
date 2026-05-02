@@ -89,6 +89,8 @@ onMounted(async () => {
 watch(dateParam, (date) => {
   prevDayData.value = null
   prevDayDate.value = null
+  // Component is no longer keyed by path, so we drive store on date change.
+  void day.setDate(date)
   void fetchPrevDay(date)
 })
 
