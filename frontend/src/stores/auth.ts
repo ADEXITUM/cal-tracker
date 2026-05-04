@@ -2,6 +2,9 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { configureClient } from '@/api/client'
 import { authApi } from '@/api/auth'
+import { clearApiCaches } from '@/lib/swCache'
+import { clearUserCache } from '@/lib/dayCache'
+import { removeUserActions } from '@/composables/useOfflineQueue'
 import type { SavedAccount, User } from '@/types/api'
 
 /**
@@ -90,9 +93,14 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = null
     currentToken.value = null
     await resetUserStores()
+    // Drop SW runtime caches keyed by URL-only — otherwise the next user
+    // would see this user's /auth/me, /dishes, /goals, /profile on first load.
+    await clearApiCaches()
     if (user) {
       savedAccounts.value = savedAccounts.value.filter(a => a.uuid !== user.uuid)
       _persistAccounts()
+      await clearUserCache(user.uuid)
+      await removeUserActions(user.uuid)
     }
     // Only hit the server if we actually had a token; otherwise the 401
     // response would re-trigger onUnauthorized → logout() recursively.
@@ -107,6 +115,10 @@ export const useAuthStore = defineStore('auth', () => {
     // Wipe previous user's state BEFORE swapping the token so that views
     // mounted after the switch don't render the previous user's data.
     await resetUserStores()
+    // Drop SW caches for per-user endpoints — they're keyed by URL only,
+    // so without this purge /auth/me below could be served from the
+    // previous user's cached body.
+    await clearApiCaches()
     currentUser.value = null
     currentToken.value = account.token
     try {
@@ -128,16 +140,26 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = null
     currentToken.value = null
     void resetUserStores()
+    // Same reason as in logout/switchTo: SW caches are URL-only, so clear
+    // them before another account boots.
+    void clearApiCaches()
   }
 
   async function removeAccount(uuid: string): Promise<void> {
     savedAccounts.value = savedAccounts.value.filter(a => a.uuid !== uuid)
     _persistAccounts()
-    if (currentUser.value?.uuid === uuid) {
+    const wasCurrent = currentUser.value?.uuid === uuid
+    if (wasCurrent) {
       currentUser.value = null
       currentToken.value = null
       await resetUserStores()
+      await clearApiCaches()
     }
+    // Drop the removed user's IDB day cache and any of their pending
+    // offline writes — without a token they'd never be flushed and would
+    // sit in IDB forever.
+    await clearUserCache(uuid)
+    await removeUserActions(uuid)
   }
 
   async function _setSession(user: User, token: string): Promise<void> {

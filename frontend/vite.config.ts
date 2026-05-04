@@ -55,14 +55,19 @@ export default defineConfig(() => ({
             },
           },
 
-          // GET /api/v1/dishes, /goals, /profile, /auth/me — slow-changing
+          // GET /api/v1/dishes, /goals, /profile, /auth/me — per-user data.
+          // NetworkFirst (not SWR) so the freshest response always wins
+          // online; the cache is only an offline fallback. SWR would have
+          // returned the *previous* user's response synchronously after an
+          // account switch, since the cache key is URL-only.
           {
             urlPattern: ({ url, request }) =>
               request.method === 'GET' &&
               /^\/api\/v1\/(dishes|goals|profile|auth\/me)/.test(url.pathname),
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'api-static',
+              networkTimeoutSeconds: 3,
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
               cacheableResponse: { statuses: [0, 200] },
             },

@@ -172,6 +172,18 @@ async function ensureInitialized(): Promise<void> {
   }
 }
 
+/**
+ * Drop every queued action that belongs to a given user. Called when an
+ * account is removed so their pending writes don't outlive the account in
+ * IDB (they would never be flushed — the token is gone).
+ */
+export async function removeUserActions(userUuid: string): Promise<void> {
+  await ensureInitialized()
+  const before = queue.value.length
+  queue.value = queue.value.filter((a) => a.userUuid !== userUuid)
+  if (queue.value.length !== before) await persist()
+}
+
 export function useOfflineQueue() {
   void ensureInitialized()
   return {

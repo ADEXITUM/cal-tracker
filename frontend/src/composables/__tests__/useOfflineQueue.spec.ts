@@ -126,6 +126,23 @@ describe('useOfflineQueue', () => {
     expect(queue.value.find(a => a.id === 'A-2')).toBeDefined()
   })
 
+  it('removeUserActions drops only the given user\'s queued actions', async () => {
+    vi.stubGlobal('navigator', { onLine: false } as Navigator) // keep them queued
+    vi.stubGlobal('fetch', vi.fn())
+
+    const mod = await loadModule()
+    let activeUuid = 'u-A'
+    mod.configureOfflineQueue({ getToken: () => 't', getCurrentUserUuid: () => activeUuid })
+
+    await mod.enqueue({ id: 'A-1', method: 'POST', url: '/x', body: {} })
+    activeUuid = 'u-B'
+    await mod.enqueue({ id: 'B-1', method: 'POST', url: '/x', body: {} })
+
+    await mod.removeUserActions('u-A')
+    const { queue } = mod.useOfflineQueue()
+    expect(queue.value.map(a => a.id)).toEqual(['B-1'])
+  })
+
   it('caps queue at MAX_QUEUE_SIZE by dropping oldest', async () => {
     vi.stubGlobal('navigator', { onLine: false } as Navigator) // keep them in queue
     vi.stubGlobal('fetch', vi.fn())

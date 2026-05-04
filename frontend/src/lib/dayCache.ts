@@ -50,6 +50,11 @@ async function pruneOldDays(userUuid: string): Promise<void> {
   }
 }
 
+export async function clearCachedDay(userUuid: string, date: string): Promise<void> {
+  if (!userUuid) return
+  try { await idbDel(key(userUuid, date)) } catch { /* best effort */ }
+}
+
 export async function clearUserCache(userUuid: string): Promise<void> {
   try {
     const allKeys = await idbKeys()
