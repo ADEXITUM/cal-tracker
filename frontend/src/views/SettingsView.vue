@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import ACard from '@/components/ui/ACard.vue'
+import AConfirm from '@/components/ui/AConfirm.vue'
 import { useTheme } from '@/composables/useTheme'
 
 const router = useRouter()
@@ -42,9 +43,18 @@ async function addAccount() {
   router.push({ name: 'login' })
 }
 
-async function removeAccount(uuid: string) {
-  await auth.removeAccount(uuid)
+const accountToRemove = ref<{ uuid: string; name: string; email: string } | null>(null)
+
+function askRemoveAccount(acc: { uuid: string; name: string; email: string }) {
+  accountToRemove.value = acc
 }
+
+async function confirmRemoveAccount() {
+  const acc = accountToRemove.value
+  accountToRemove.value = null
+  if (acc) await auth.removeAccount(acc.uuid)
+}
+
 </script>
 
 <template>
@@ -103,7 +113,7 @@ async function removeAccount(uuid: string) {
               class="text-xs p-1 -mr-1"
               style="color: var(--color-text-3)"
               aria-label="Удалить"
-              @click.stop="removeAccount(acc.uuid)"
+              @click.stop="askRemoveAccount(acc)"
             >✕</button>
           </div>
         </ACard>
@@ -168,5 +178,14 @@ async function removeAccount(uuid: string) {
         Кал Трекер — v1.0
       </p>
     </div>
+
+    <AConfirm
+      :model-value="accountToRemove !== null"
+      title="Удалить аккаунт?"
+      :message="accountToRemove ? `Аккаунт «${accountToRemove.name}» (${accountToRemove.email}) будет удалён из списка сохранённых на этом устройстве.` : ''"
+      confirm-label="Удалить"
+      @update:model-value="(v) => { if (!v) accountToRemove = null }"
+      @confirm="confirmRemoveAccount"
+    />
   </div>
 </template>

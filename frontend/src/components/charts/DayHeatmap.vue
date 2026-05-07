@@ -78,11 +78,22 @@ function dismiss() {
   selected.value = null
 }
 
-function tooltipData(date: string): { kcal: number | null; weight: string | null; delta: number | null } | null {
+function tooltipData(date: string): {
+  kcal: number | null
+  proteinG: number | null
+  fatG: number | null
+  carbsG: number | null
+  weight: string | null
+  delta: number | null
+} | null {
   const d = byDate.value.get(date)
   if (!d) return null
+  const hasMeals = d.totals.kcal > 0
   return {
     kcal: d.totals.kcal || null,
+    proteinG: hasMeals ? d.totals.proteinG : null,
+    fatG: hasMeals ? d.totals.fatG : null,
+    carbsG: hasMeals ? d.totals.carbsG : null,
     weight: d.weightKg ? `${d.weightKg} кг` : null,
     delta: d.deltaFromGoal,
   }
@@ -163,6 +174,15 @@ function formatDelta(delta: number | null): string {
               </span>
             </template>
             <span v-else class="text-xs" style="color: var(--color-text-3)">нет данных</span>
+          </div>
+          <div
+            v-if="tooltipData(selected) && tooltipData(selected)!.proteinG !== null"
+            class="flex gap-3 mt-1 flex-wrap"
+            style="color: var(--color-text-3)"
+          >
+            <span class="text-xs">Б {{ tooltipData(selected)!.proteinG }} г</span>
+            <span class="text-xs">Ж {{ tooltipData(selected)!.fatG }} г</span>
+            <span class="text-xs">У {{ tooltipData(selected)!.carbsG }} г</span>
           </div>
         </div>
         <div class="flex items-center gap-2 flex-shrink-0">

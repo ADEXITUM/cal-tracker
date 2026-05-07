@@ -5,6 +5,7 @@ import { stepsKcal } from '@/lib/tdee'
 import ASheet from '@/components/ui/ASheet.vue'
 import AButton from '@/components/ui/AButton.vue'
 import ANumpad from '@/components/ui/ANumpad.vue'
+import AConfirm from '@/components/ui/AConfirm.vue'
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
@@ -12,6 +13,7 @@ const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 const day = useDayStore()
 const stepsStr = ref('0')
 const loading = ref(false)
+const showClearConfirm = ref(false)
 
 const steps = computed(() => {
   const n = parseInt(stepsStr.value, 10)
@@ -85,11 +87,19 @@ async function clear() {
         size="md"
         :loading="loading"
         class="flex-1"
-        @click="clear"
+        @click="showClearConfirm = true"
       >Удалить</AButton>
       <AButton size="md" :loading="loading" class="flex-1" @click="save">
         {{ isEditing ? 'Обновить' : 'Сохранить' }}
       </AButton>
     </div>
+
+    <AConfirm
+      v-model="showClearConfirm"
+      title="Удалить шаги за день?"
+      message="Запись о шагах будет удалена."
+      confirm-label="Удалить"
+      @confirm="clear"
+    />
   </ASheet>
 </template>

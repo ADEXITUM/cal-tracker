@@ -6,12 +6,21 @@ import AButton from '@/components/ui/AButton.vue'
 import ASheet from '@/components/ui/ASheet.vue'
 import AInput from '@/components/ui/AInput.vue'
 import AHeader from '@/components/ui/AHeader.vue'
+import AConfirm from '@/components/ui/AConfirm.vue'
+import type { Dish } from '@/types/api'
 
 const store = useDishesStore()
 const search = ref('')
 const showCreate = ref(false)
 const saving = ref(false)
 const form = ref({ name: '', kcalPer100g: '', proteinPer100g: '', fatPer100g: '', carbsPer100g: '' })
+const dishToDelete = ref<Dish | null>(null)
+
+function confirmDeleteDish() {
+  const d = dishToDelete.value
+  dishToDelete.value = null
+  if (d) void store.remove(d.uuid)
+}
 
 const filtered = computed(() => store.search(search.value))
 
@@ -70,7 +79,7 @@ async function createDish() {
               {{ dish.kcalPer100g }} ккал · Б{{ dish.proteinPer100g }} Ж{{ dish.fatPer100g }} У{{ dish.carbsPer100g }} /100г
             </p>
           </div>
-          <button class="text-xs p-1" style="color: var(--color-text-3)" @click="store.remove(dish.uuid)">✕</button>
+          <button class="text-xs p-1" style="color: var(--color-text-3)" @click="dishToDelete = dish">✕</button>
         </div>
       </ACard>
 
@@ -78,6 +87,15 @@ async function createDish() {
         {{ search ? 'Ничего не найдено' : 'Добавьте первое блюдо' }}
       </p>
     </div>
+
+    <AConfirm
+      :model-value="dishToDelete !== null"
+      title="Удалить блюдо?"
+      :message="dishToDelete ? `«${dishToDelete.name}» будет удалено.` : ''"
+      confirm-label="Удалить"
+      @update:model-value="(v) => { if (!v) dishToDelete = null }"
+      @confirm="confirmDeleteDish"
+    />
 
     <ASheet v-model="showCreate" title="Новое блюдо">
       <div class="flex flex-col gap-4">

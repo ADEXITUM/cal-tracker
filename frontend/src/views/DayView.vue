@@ -18,6 +18,7 @@ import AddStepsSheet from '@/components/add/AddStepsSheet.vue'
 import AddWorkoutSheet from '@/components/add/AddWorkoutSheet.vue'
 import ModeExplainerModal from '@/components/day/ModeExplainerModal.vue'
 import DayInsights from '@/components/day/DayInsights.vue'
+import AConfirm from '@/components/ui/AConfirm.vue'
 import { GOAL_TYPE_LABEL } from '@/lib/modes'
 
 const route = useRoute()
@@ -29,6 +30,21 @@ const showAddMeasurement = ref(false)
 const showAddSteps = ref(false)
 const showAddWorkout = ref(false)
 const showModeExplainer = ref(false)
+
+const mealToDelete = ref<{ uuid: string; name: string } | null>(null)
+const workoutToDelete = ref<{ uuid: string; name: string } | null>(null)
+
+function confirmDeleteMeal() {
+  const m = mealToDelete.value
+  mealToDelete.value = null
+  if (m) void day.deleteMeal(m.uuid)
+}
+
+function confirmDeleteWorkout() {
+  const w = workoutToDelete.value
+  workoutToDelete.value = null
+  if (w) void day.deleteWorkout(w.uuid)
+}
 
 const activeTab = ref<'goal' | 'balance'>('goal')
 
@@ -125,10 +141,9 @@ function daysBetween(fromIso: string, toIso: string): number {
 const macroCards = computed(() => {
   const totals = day.data?.totals
   const goal = day.data?.goal
-  const prev = prevDayData.value?.totals
-  const make = (label: string, current: number, goalVal?: number, prevVal?: number) => {
+  const make = (label: string, current: number, goalVal?: number) => {
     const pct = goalVal ? Math.min(150, Math.round((current / goalVal) * 100)) : 0
-    const delta = prevVal != null ? Math.round((current - prevVal) * 10) / 10 : null
+    const remaining = goalVal != null ? Math.round((goalVal - current) * 10) / 10 : null
     return {
       key: label,
       label,
@@ -136,13 +151,13 @@ const macroCards = computed(() => {
       goal: goalVal,
       percent: Math.min(100, pct),
       onTarget: pct >= 90 && pct <= 110,
-      delta,
+      remaining,
     }
   }
   return [
-    make('Белки', totals?.proteinG ?? 0, goal?.proteinG, prev?.proteinG),
-    make('Жиры', totals?.fatG ?? 0, goal?.fatG, prev?.fatG),
-    make('Углеводы', totals?.carbsG ?? 0, goal?.carbsG, prev?.carbsG),
+    make('Белки', totals?.proteinG ?? 0, goal?.proteinG),
+    make('Жиры', totals?.fatG ?? 0, goal?.fatG),
+    make('Углеводы', totals?.carbsG ?? 0, goal?.carbsG),
   ]
 })
 
@@ -274,10 +289,10 @@ const sprintChip = computed(() => {
                 / {{ macro.goal }} г
               </p>
               <p
-                v-if="macro.delta !== null"
+                v-if="macro.remaining !== null"
                 class="text-[10px] mt-0.5"
-                :style="{ color: macro.delta === 0 ? 'var(--color-text-3)' : macro.delta > 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
-              >{{ deltaIcon(macro.delta) }} {{ fmtDelta(macro.delta) }} г</p>
+                :style="{ color: macro.remaining < 0 ? 'var(--color-red)' : 'var(--color-accent)' }"
+              >{{ macro.remaining > 0 ? '+' : '' }}{{ macro.remaining }} г</p>
               <div
                 v-if="macro.goal"
                 class="mt-2 h-1.5 rounded-full overflow-hidden"
@@ -325,13 +340,20 @@ const sprintChip = computed(() => {
           </div>
           <div v-else class="flex flex-col divide-y" style="border-color: var(--color-border)">
             <div v-for="meal in day.data.meals" :key="meal.uuid" class="flex items-center justify-between py-2.5">
-              <div>
+              <div class="min-w-0">
                 <p class="text-sm font-medium" style="color: var(--color-text)">{{ meal.name ?? '—' }}</p>
                 <p class="text-xs" style="color: var(--color-text-3)">
                   {{ meal.slot }} · {{ meal.grams ? `${meal.grams} г · ` : '' }}{{ meal.kcal || 0 }} ккал
                 </p>
+                <p class="text-xs mt-0.5" style="color: var(--color-text-3)">
+                  Б {{ meal.proteinG }} · Ж {{ meal.fatG }} · У {{ meal.carbsG }}
+                </p>
               </div>
-              <button class="p-1 text-xs" style="color: var(--color-text-3)" @click="day.deleteMeal(meal.uuid)">✕</button>
+              <button
+                class="p-1 text-xs flex-shrink-0"
+                style="color: var(--color-text-3)"
+                @click="mealToDelete = { uuid: meal.uuid, name: meal.name ?? 'приём пищи' }"
+              >✕</button>
             </div>
           </div>
         </div>
@@ -425,7 +447,11 @@ const sprintChip = computed(() => {
                   {{ w.durationMin ? `${w.durationMin} мин` : '' }}{{ w.kcalBurned ? ` · ${w.kcalBurned} ккал` : '' }}
                 </p>
               </div>
-              <button class="p-1 text-xs" style="color: var(--color-text-3)" @click="day.deleteWorkout(w.uuid)">✕</button>
+              <button
+                class="p-1 text-xs"
+                style="color: var(--color-text-3)"
+                @click="workoutToDelete = { uuid: w.uuid, name: w.name }"
+              >✕</button>
             </div>
           </div>
         </div>
@@ -449,6 +475,24 @@ const sprintChip = computed(() => {
       :mode="day.data?.mode ?? null"
       :goal="day.data?.goal ?? null"
       :totals="day.data?.totals ?? null"
+    />
+
+    <AConfirm
+      :model-value="mealToDelete !== null"
+      title="Удалить приём пищи?"
+      :message="mealToDelete ? `«${mealToDelete.name}» будет удалён.` : ''"
+      confirm-label="Удалить"
+      @update:model-value="(v) => { if (!v) mealToDelete = null }"
+      @confirm="confirmDeleteMeal"
+    />
+
+    <AConfirm
+      :model-value="workoutToDelete !== null"
+      title="Удалить тренировку?"
+      :message="workoutToDelete ? `«${workoutToDelete.name}» будет удалена.` : ''"
+      confirm-label="Удалить"
+      @update:model-value="(v) => { if (!v) workoutToDelete = null }"
+      @confirm="confirmDeleteWorkout"
     />
   </div>
 </template>

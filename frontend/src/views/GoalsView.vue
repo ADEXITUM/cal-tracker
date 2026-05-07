@@ -4,12 +4,14 @@ import { useGoalsStore } from '@/stores/goals'
 import { GOAL_TYPE_LABEL } from '@/lib/modes'
 import ACard from '@/components/ui/ACard.vue'
 import AButton from '@/components/ui/AButton.vue'
+import AConfirm from '@/components/ui/AConfirm.vue'
 import GoalEditSheet from '@/components/goals/GoalEditSheet.vue'
 import type { Goal, GoalType } from '@/types/api'
 
 const goals = useGoalsStore()
 const showEdit = ref(false)
 const editing = ref<Goal | null>(null)
+const goalToEnd = ref<Goal | null>(null)
 
 onMounted(async () => {
   await goals.fetchAll()
@@ -41,9 +43,14 @@ const TYPE_STYLE: Record<GoalType, { bg: string; text: string; icon: string }> =
   bulk:        { bg: 'var(--color-green-soft)', text: 'var(--color-green)',  icon: '↗' },
 }
 
-async function confirmEnd(g: Goal) {
-  if (!confirm(`Завершить цель «${g.kcal} ккал» сегодняшним днём?`)) return
-  await goals.endGoal(g.uuid)
+function askEnd(g: Goal) {
+  goalToEnd.value = g
+}
+
+async function confirmEnd() {
+  const g = goalToEnd.value
+  goalToEnd.value = null
+  if (g) await goals.endGoal(g.uuid)
 }
 
 const sortedGoals = computed(() => goals.sorted)
@@ -106,7 +113,7 @@ const sortedGoals = computed(() => goals.sorted)
             v-if="isActive(g) && !g.endDate"
             class="text-xs px-2 py-1 rounded-[var(--radius-sm)] flex-shrink-0"
             style="color: var(--color-accent); background: var(--color-surface-2)"
-            @click.stop="confirmEnd(g)"
+            @click.stop="askEnd(g)"
           >Завершить</button>
         </div>
       </ACard>
@@ -116,6 +123,16 @@ const sortedGoals = computed(() => goals.sorted)
       v-model="showEdit"
       :goal="editing"
       @saved="goals.fetchAll(true)"
+    />
+
+    <AConfirm
+      :model-value="goalToEnd !== null"
+      title="Завершить цель?"
+      :message="goalToEnd ? `Цель «${goalToEnd.kcal} ккал» будет завершена сегодняшним днём.` : ''"
+      confirm-label="Завершить"
+      variant="primary"
+      @update:model-value="(v) => { if (!v) goalToEnd = null }"
+      @confirm="confirmEnd"
     />
   </div>
 </template>
