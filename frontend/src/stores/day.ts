@@ -225,6 +225,68 @@ export const useDayStore = defineStore('day', () => {
     updateTotals()
   }
 
+  async function updateMeal(uuidStr: string, payload: Record<string, unknown>) {
+    if (!data.value) return
+    const idx = data.value.meals.findIndex(m => m.uuid === uuidStr)
+    if (idx < 0) return
+    const prev = data.value.meals[idx]
+
+    let kcal = Number(payload.kcal ?? 0)
+    let proteinG = Number(payload.proteinG ?? 0)
+    let fatG = Number(payload.fatG ?? 0)
+    let carbsG = Number(payload.carbsG ?? 0)
+    let name = (payload.name as string) ?? prev.name
+    if (payload.dishUuid && payload.grams) {
+      const dishStore = useDishesStore()
+      const dish = dishStore.items.find(d => d.uuid === payload.dishUuid)
+      if (dish) {
+        const g = Number(payload.grams)
+        kcal     = Math.round(dish.kcalPer100g    * g / 100)
+        proteinG = Math.round(dish.proteinPer100g * g / 100)
+        fatG     = Math.round(dish.fatPer100g     * g / 100)
+        carbsG   = Math.round(dish.carbsPer100g   * g / 100)
+        name     = dish.name
+      }
+    }
+
+    const optimistic: Meal = {
+      uuid: uuidStr,
+      slot: payload.slot as Meal['slot'],
+      eatenAt: (payload.eatenAt as string) ?? prev.eatenAt,
+      dishUuid: (payload.dishUuid as string) ?? null,
+      grams: (payload.grams as number) ?? null,
+      name,
+      kcal, proteinG, fatG, carbsG,
+    }
+    data.value.meals.splice(idx, 1, optimistic)
+    updateTotals()
+    bumpVersion()
+    void persistOptimistic()
+
+    try {
+      const res = await daysApi.updateMeal(uuidStr, payload)
+      const j = data.value.meals.findIndex(m => m.uuid === uuidStr)
+      if (j >= 0) data.value.meals.splice(j, 1, res.data)
+      updateTotals()
+      void fetch({ skipCache: true })
+    } catch (e) {
+      if (e instanceof NetworkError) {
+        await enqueueOffline({
+          id: uuid(),
+          method: 'PUT',
+          url: `/meals/${uuidStr}`,
+          body: snakeify(payload),
+        })
+      } else {
+        // permanent — roll back
+        const j = data.value.meals.findIndex(m => m.uuid === uuidStr)
+        if (j >= 0) data.value.meals.splice(j, 1, prev)
+        updateTotals()
+        throw e
+      }
+    }
+  }
+
   async function deleteMeal(uuidStr: string) {
     const prev = data.value ? { ...data.value, meals: [...data.value.meals] } : null
     if (data.value) {
@@ -424,7 +486,7 @@ export const useDayStore = defineStore('day', () => {
   return {
     currentDate, data, loading, error,
     setDate, fetch, reset, goTo, goToToday, goToPrev, goToNext,
-    addMeal, deleteMeal,
+    addMeal, updateMeal, deleteMeal,
     addMeasurement, deleteMeasurement, updateDayEntry,
     addWorkout, deleteWorkout,
   }

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"console.log\\(new URL\\('https://кал-трекер.рф'\\).href\\); console.log\\(new URL\\('https://кал-трекер.рф'\\).hostname\\)\")"
+    ]
+  }
+}

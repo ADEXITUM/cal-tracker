@@ -11,48 +11,95 @@ import type { Dish } from '@/types/api'
 
 const store = useDishesStore()
 const search = ref('')
-const showCreate = ref(false)
+const showForm = ref(false)
 const saving = ref(false)
-const form = ref({ name: '', kcalPer100g: '', proteinPer100g: '', fatPer100g: '', carbsPer100g: '' })
+const editing = ref<Dish | null>(null)
 const dishToDelete = ref<Dish | null>(null)
 
-function confirmDeleteDish() {
-  const d = dishToDelete.value
-  dishToDelete.value = null
-  if (d) void store.remove(d.uuid)
-}
+const empty = () => ({
+  name: '',
+  kcalPer100g: '',
+  proteinPer100g: '',
+  fatPer100g: '',
+  carbsPer100g: '',
+  isPiece: false,
+  pieceGrams: '',
+  pieceLabel: '',
+})
+const form = ref(empty())
 
 const filtered = computed(() => store.search(search.value))
 
-const canCreate = computed(() => {
+const canSave = computed(() => {
   const f = form.value
-  return (
+  const ok =
     f.name.trim().length > 0 &&
     f.kcalPer100g !== '' && !isNaN(parseFloat(f.kcalPer100g)) &&
     f.proteinPer100g !== '' && !isNaN(parseFloat(f.proteinPer100g)) &&
     f.fatPer100g !== '' && !isNaN(parseFloat(f.fatPer100g)) &&
     f.carbsPer100g !== '' && !isNaN(parseFloat(f.carbsPer100g))
-  )
+  if (!ok) return false
+  if (f.isPiece) {
+    return (
+      f.pieceLabel.trim().length > 0 &&
+      f.pieceGrams !== '' && !isNaN(parseFloat(f.pieceGrams)) && parseFloat(f.pieceGrams) > 0
+    )
+  }
+  return true
 })
 
 onMounted(() => store.fetchAll(true))
 
-async function createDish() {
-  if (!canCreate.value) return
+function openCreate() {
+  editing.value = null
+  form.value = empty()
+  showForm.value = true
+}
+
+function openEdit(d: Dish) {
+  editing.value = d
+  form.value = {
+    name: d.name,
+    kcalPer100g: String(d.kcalPer100g),
+    proteinPer100g: String(d.proteinPer100g),
+    fatPer100g: String(d.fatPer100g),
+    carbsPer100g: String(d.carbsPer100g),
+    isPiece: d.isPiece,
+    pieceGrams: d.pieceGrams != null ? String(d.pieceGrams) : '',
+    pieceLabel: d.pieceLabel ?? '',
+  }
+  showForm.value = true
+}
+
+async function saveDish() {
+  if (!canSave.value) return
   saving.value = true
   try {
-    await store.create({
-      name: form.value.name.trim(),
-      kcalPer100g: parseFloat(form.value.kcalPer100g),
-      proteinPer100g: parseFloat(form.value.proteinPer100g),
-      fatPer100g: parseFloat(form.value.fatPer100g),
-      carbsPer100g: parseFloat(form.value.carbsPer100g),
-    })
-    showCreate.value = false
-    form.value = { name: '', kcalPer100g: '', proteinPer100g: '', fatPer100g: '', carbsPer100g: '' }
+    const f = form.value
+    const payload = {
+      name: f.name.trim(),
+      kcalPer100g: parseFloat(f.kcalPer100g),
+      proteinPer100g: parseFloat(f.proteinPer100g),
+      fatPer100g: parseFloat(f.fatPer100g),
+      carbsPer100g: parseFloat(f.carbsPer100g),
+      isPiece: f.isPiece,
+      pieceGrams: f.isPiece ? parseFloat(f.pieceGrams) : null,
+      pieceLabel: f.isPiece ? f.pieceLabel.trim() : null,
+    }
+    if (editing.value) await store.update(editing.value.uuid, payload)
+    else await store.create(payload)
+    showForm.value = false
+    form.value = empty()
+    editing.value = null
   } finally {
     saving.value = false
   }
+}
+
+function confirmDeleteDish() {
+  const d = dishToDelete.value
+  dishToDelete.value = null
+  if (d) void store.remove(d.uuid)
 }
 </script>
 
@@ -60,7 +107,7 @@ async function createDish() {
   <div class="flex flex-col min-h-svh" style="background: var(--color-bg)">
     <AHeader title="Мои блюда" back back-to="/settings">
       <template #right>
-        <AButton size="sm" @click="showCreate = true">+ Новое</AButton>
+        <AButton size="sm" @click="openCreate">+ Новое</AButton>
       </template>
     </AHeader>
 
@@ -73,13 +120,18 @@ async function createDish() {
 
       <ACard v-for="dish in filtered" :key="dish.uuid">
         <div class="flex items-center justify-between px-4 py-3">
-          <div>
-            <p class="text-sm font-medium" style="color: var(--color-text)">{{ dish.name }}</p>
+          <button type="button" class="flex-1 text-left min-w-0 active:opacity-70" @click="openEdit(dish)">
+            <p class="text-sm font-medium" style="color: var(--color-text)">
+              {{ dish.name }}
+              <span v-if="dish.isPiece" class="text-xs font-normal" style="color: var(--color-text-3)">
+                · {{ dish.pieceLabel || 'шт' }} {{ dish.pieceGrams }}г
+              </span>
+            </p>
             <p class="text-xs mt-0.5" style="color: var(--color-text-3)">
               {{ dish.kcalPer100g }} ккал · Б{{ dish.proteinPer100g }} Ж{{ dish.fatPer100g }} У{{ dish.carbsPer100g }} /100г
             </p>
-          </div>
-          <button class="text-xs p-1" style="color: var(--color-text-3)" @click="dishToDelete = dish">✕</button>
+          </button>
+          <button class="text-xs p-2" style="color: var(--color-text-3)" aria-label="Удалить" @click="dishToDelete = dish">✕</button>
         </div>
       </ACard>
 
@@ -97,9 +149,10 @@ async function createDish() {
       @confirm="confirmDeleteDish"
     />
 
-    <ASheet v-model="showCreate" title="Новое блюдо">
+    <ASheet v-model="showForm" :title="editing ? 'Изменить блюдо' : 'Новое блюдо'">
       <div class="flex flex-col gap-4">
         <AInput v-model="form.name" label="Название" placeholder="Куриная грудка" />
+
         <p class="text-xs" style="color: var(--color-text-3)">КБЖУ на 100 г</p>
         <div class="grid grid-cols-2 gap-3">
           <AInput v-model="form.kcalPer100g" label="Калории" type="number" placeholder="165" />
@@ -107,7 +160,24 @@ async function createDish() {
           <AInput v-model="form.fatPer100g" label="Жиры (г)" type="number" placeholder="3.6" />
           <AInput v-model="form.carbsPer100g" label="Углеводы (г)" type="number" placeholder="0" />
         </div>
-        <AButton size="lg" :loading="saving" :disabled="!canCreate" class="w-full" @click="createDish">Сохранить</AButton>
+
+        <label class="flex items-center gap-2.5 px-3 py-2.5 rounded-[var(--radius-md)] cursor-pointer"
+          style="background: var(--color-surface-2); border: 1px solid var(--color-border)">
+          <input v-model="form.isPiece" type="checkbox" class="w-4 h-4" />
+          <div class="flex-1">
+            <p class="text-sm font-medium" style="color: var(--color-text)">Считать по штукам</p>
+            <p class="text-xs" style="color: var(--color-text-3)">Например: банка йогурта, ложка масла</p>
+          </div>
+        </label>
+
+        <div v-if="form.isPiece" class="grid grid-cols-2 gap-3">
+          <AInput v-model="form.pieceLabel" label="Единица" placeholder="банка" />
+          <AInput v-model="form.pieceGrams" label="Граммов в 1 шт" type="number" placeholder="125" />
+        </div>
+
+        <AButton size="lg" :loading="saving" :disabled="!canSave" class="w-full" @click="saveDish">
+          {{ editing ? 'Сохранить' : 'Добавить' }}
+        </AButton>
       </div>
     </ASheet>
   </div>

@@ -26,12 +26,16 @@ const otherAccounts = computed(() =>
   auth.savedAccounts.filter(a => a.uuid !== auth.currentUser?.uuid),
 )
 
-async function logout() {
+const showLogoutConfirm = ref(false)
+
+async function doLogout() {
+  showLogoutConfirm.value = false
   await auth.logout()
   router.push({ name: 'login' })
 }
 
 async function switchTo(uuid: string) {
+  if (auth.switching) return
   await auth.switchTo(uuid)
   if (!auth.currentUser) router.push({ name: 'login' })
   else router.push({ name: 'day' })
@@ -169,7 +173,7 @@ async function confirmRemoveAccount() {
       <button
         class="text-sm py-3 mt-4 rounded-[var(--radius-sm)] transition-colors"
         style="color: var(--color-red); border: 1px solid var(--color-border)"
-        @click="logout"
+        @click="showLogoutConfirm = true"
       >
         Выйти
       </button>
@@ -186,6 +190,14 @@ async function confirmRemoveAccount() {
       confirm-label="Удалить"
       @update:model-value="(v) => { if (!v) accountToRemove = null }"
       @confirm="confirmRemoveAccount"
+    />
+
+    <AConfirm
+      v-model="showLogoutConfirm"
+      title="Выйти из аккаунта?"
+      message="Вы выйдете из текущего аккаунта на этом устройстве."
+      confirm-label="Выйти"
+      @confirm="doLogout"
     />
   </div>
 </template>

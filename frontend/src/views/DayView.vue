@@ -13,6 +13,7 @@ import AButton from '@/components/ui/AButton.vue'
 import DayFab from '@/components/day/DayFab.vue'
 import DayBalanceCard from '@/components/day/DayBalanceCard.vue'
 import AddMealSheet from '@/components/add/AddMealSheet.vue'
+import type { Meal } from '@/types/api'
 import AddMeasurementSheet from '@/components/add/AddMeasurementSheet.vue'
 import AddStepsSheet from '@/components/add/AddStepsSheet.vue'
 import AddWorkoutSheet from '@/components/add/AddWorkoutSheet.vue'
@@ -31,8 +32,17 @@ const showAddSteps = ref(false)
 const showAddWorkout = ref(false)
 const showModeExplainer = ref(false)
 
+const editingMeal = ref<Meal | null>(null)
+const showEditMeal = ref(false)
 const mealToDelete = ref<{ uuid: string; name: string } | null>(null)
 const workoutToDelete = ref<{ uuid: string; name: string } | null>(null)
+
+function startEditMeal(m: Meal) {
+  editingMeal.value = m
+  showEditMeal.value = true
+}
+
+watch(showEditMeal, (v) => { if (!v) editingMeal.value = null })
 
 function confirmDeleteMeal() {
   const m = mealToDelete.value
@@ -340,7 +350,11 @@ const sprintChip = computed(() => {
           </div>
           <div v-else class="flex flex-col divide-y" style="border-color: var(--color-border)">
             <div v-for="meal in day.data.meals" :key="meal.uuid" class="flex items-center justify-between py-2.5">
-              <div class="min-w-0">
+              <button
+                type="button"
+                class="flex-1 text-left min-w-0 active:opacity-70 transition-opacity"
+                @click="startEditMeal(meal)"
+              >
                 <p class="text-sm font-medium" style="color: var(--color-text)">{{ meal.name ?? '—' }}</p>
                 <p class="text-xs" style="color: var(--color-text-3)">
                   {{ meal.slot }} · {{ meal.grams ? `${meal.grams} г · ` : '' }}{{ meal.kcal || 0 }} ккал
@@ -348,10 +362,12 @@ const sprintChip = computed(() => {
                 <p class="text-xs mt-0.5" style="color: var(--color-text-3)">
                   Б {{ meal.proteinG }} · Ж {{ meal.fatG }} · У {{ meal.carbsG }}
                 </p>
-              </div>
+              </button>
               <button
-                class="p-1 text-xs flex-shrink-0"
+                type="button"
+                class="p-2 text-xs flex-shrink-0"
                 style="color: var(--color-text-3)"
+                aria-label="Удалить"
                 @click="mealToDelete = { uuid: meal.uuid, name: meal.name ?? 'приём пищи' }"
               >✕</button>
             </div>
@@ -467,6 +483,7 @@ const sprintChip = computed(() => {
     <DayFab @add="openAdd" />
 
     <AddMealSheet v-model="showAddMeal" />
+    <AddMealSheet v-model="showEditMeal" :meal="editingMeal" />
     <AddMeasurementSheet v-model="showAddMeasurement" />
     <AddStepsSheet v-model="showAddSteps" />
     <AddWorkoutSheet v-model="showAddWorkout" />

@@ -39,10 +39,17 @@ export const useDishesStore = defineStore('dishes', () => {
     return res.data
   }
 
+  async function update(uuid: string, payload: Omit<Dish, 'uuid' | 'usageCount' | 'lastUsedAt'>) {
+    const res = await dishesApi.update(uuid, payload)
+    const idx = items.value.findIndex(d => d.uuid === uuid)
+    if (idx >= 0) items.value.splice(idx, 1, res.data)
+    return res.data
+  }
+
   async function remove(uuid: string) {
     await dishesApi.delete(uuid)
     items.value = items.value.filter(d => d.uuid !== uuid)
   }
 
-  return { items, loading, fetchAll, reset, search, create, remove }
+  return { items, loading, fetchAll, reset, search, create, update, remove }
 })

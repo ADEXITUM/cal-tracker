@@ -21,6 +21,9 @@ class DishResource extends JsonResource
             'carbs_per_100g'   => (float) $this->carbs_per_100g,
             'usage_count'      => $this->usage_count,
             'last_used_at'     => $this->last_used_at?->toIso8601String(),
+            'is_piece'         => (bool) $this->is_piece,
+            'piece_grams'      => $this->piece_grams !== null ? (float) $this->piece_grams : null,
+            'piece_label'      => $this->piece_label,
         ];
     }
 }

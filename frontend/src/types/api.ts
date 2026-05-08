@@ -72,6 +72,9 @@ export interface Dish {
   carbsPer100g: number
   usageCount: number
   lastUsedAt: string | null
+  isPiece: boolean
+  pieceGrams: number | null
+  pieceLabel: string | null
 }
 
 export interface Totals {

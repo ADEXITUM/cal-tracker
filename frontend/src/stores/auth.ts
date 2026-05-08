@@ -50,6 +50,13 @@ export const useAuthStore = defineStore('auth', () => {
   const currentToken = ref<string | null>(null)
   const savedAccounts = ref<SavedAccount[]>([])
   const isInitialized = ref(false)
+  /**
+   * True from the moment switchTo() starts until the new user's /auth/me
+   * resolves. UI should block interaction while this is on — otherwise on
+   * slow networks the user can fire writes that race the half-swapped
+   * session and end up tagged to the wrong account.
+   */
+  const switching = ref(false)
 
   const isAuthenticated = computed(() => currentUser.value !== null)
 
@@ -112,22 +119,28 @@ export const useAuthStore = defineStore('auth', () => {
   async function switchTo(uuid: string): Promise<void> {
     const account = savedAccounts.value.find(a => a.uuid === uuid)
     if (!account) return
-    // Wipe previous user's state BEFORE swapping the token so that views
-    // mounted after the switch don't render the previous user's data.
-    await resetUserStores()
-    // Drop SW caches for per-user endpoints — they're keyed by URL only,
-    // so without this purge /auth/me below could be served from the
-    // previous user's cached body.
-    await clearApiCaches()
-    currentUser.value = null
-    currentToken.value = account.token
+    if (switching.value) return
+    switching.value = true
     try {
-      const res = await authApi.me()
-      currentUser.value = res.data.user
-      account.lastUsedAt = Date.now()
-      _persistAccounts()
-    } catch {
-      await removeAccount(uuid)
+      // Wipe previous user's state BEFORE swapping the token so that views
+      // mounted after the switch don't render the previous user's data.
+      await resetUserStores()
+      // Drop SW caches for per-user endpoints — they're keyed by URL only,
+      // so without this purge /auth/me below could be served from the
+      // previous user's cached body.
+      await clearApiCaches()
+      currentUser.value = null
+      currentToken.value = account.token
+      try {
+        const res = await authApi.me()
+        currentUser.value = res.data.user
+        account.lastUsedAt = Date.now()
+        _persistAccounts()
+      } catch {
+        await removeAccount(uuid)
+      }
+    } finally {
+      switching.value = false
     }
   }
 
@@ -201,6 +214,7 @@ export const useAuthStore = defineStore('auth', () => {
     savedAccounts,
     isAuthenticated,
     isInitialized,
+    switching,
     restoreFromIdb,
     login,
     register,

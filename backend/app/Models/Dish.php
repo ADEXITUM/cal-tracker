@@ -22,6 +22,9 @@ class Dish extends Model
         'protein_per_100g',
         'fat_per_100g',
         'carbs_per_100g',
+        'is_piece',
+        'piece_grams',
+        'piece_label',
     ];
 
     protected static function booted(): void
@@ -39,6 +42,8 @@ class Dish extends Model
             'usage_count'      => 'integer',
             'last_used_at'     => 'datetime',
             'archived_at'      => 'datetime',
+            'is_piece'         => 'boolean',
+            'piece_grams'      => 'float',
         ];
     }
 
