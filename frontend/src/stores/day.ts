@@ -288,7 +288,7 @@ export const useDayStore = defineStore('day', () => {
   }
 
   async function deleteMeal(uuidStr: string) {
-    const prev = data.value ? { ...data.value, meals: [...data.value.meals] } : null
+    const prevMeals = data.value ? [...data.value.meals] : null
     if (data.value) {
       data.value.meals = data.value.meals.filter(m => m.uuid !== uuidStr)
       updateTotals()
@@ -307,7 +307,18 @@ export const useDayStore = defineStore('day', () => {
           body: null,
         })
       } else {
-        if (prev) data.value = prev
+        // Permanent failure (404/403/etc): roll back the optimistic remove
+        // and surface the error so the user knows nothing happened. Without
+        // this the row would silently re-appear on the next refetch with no
+        // explanation.
+        if (prevMeals && data.value) {
+          data.value.meals = prevMeals
+          updateTotals()
+        }
+        const { useToast } = await import('@/composables/useToast')
+        useToast().show('Не удалось удалить приём пищи', 'error')
+        // eslint-disable-next-line no-console
+        console.error('[deleteMeal] failed', e)
       }
     }
   }

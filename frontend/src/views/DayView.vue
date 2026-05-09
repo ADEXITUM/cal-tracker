@@ -44,16 +44,19 @@ function startEditMeal(m: Meal) {
 
 watch(showEditMeal, (v) => { if (!v) editingMeal.value = null })
 
+// AConfirm emits update:modelValue=false BEFORE confirm. Our @update:modelValue
+// nulls *toDelete, so by the time confirm fires the captured ref is gone and
+// nothing gets deleted. Read the value at click time, not in the handler.
 function confirmDeleteMeal() {
   const m = mealToDelete.value
-  mealToDelete.value = null
   if (m) void day.deleteMeal(m.uuid)
+  mealToDelete.value = null
 }
 
 function confirmDeleteWorkout() {
   const w = workoutToDelete.value
-  workoutToDelete.value = null
   if (w) void day.deleteWorkout(w.uuid)
+  workoutToDelete.value = null
 }
 
 const activeTab = ref<'goal' | 'balance'>('goal')

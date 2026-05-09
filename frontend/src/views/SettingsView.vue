@@ -56,7 +56,9 @@ function askRemoveAccount(acc: { uuid: string; name: string; email: string }) {
 async function confirmRemoveAccount() {
   const acc = accountToRemove.value
   accountToRemove.value = null
-  if (acc) await auth.removeAccount(acc.uuid)
+  if (acc) {
+    await auth.removeAccount(acc.uuid)
+  }
 }
 
 </script>

@@ -98,8 +98,8 @@ async function saveDish() {
 
 function confirmDeleteDish() {
   const d = dishToDelete.value
-  dishToDelete.value = null
   if (d) void store.remove(d.uuid)
+  dishToDelete.value = null
 }
 </script>
 

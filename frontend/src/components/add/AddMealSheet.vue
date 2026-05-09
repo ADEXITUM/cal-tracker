@@ -17,7 +17,7 @@ const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 const day = useDayStore()
 const dishStore = useDishesStore()
 
-type Mode = 'pick' | 'grams' | 'adhoc'
+type Mode = 'pick' | 'browse' | 'grams' | 'adhoc'
 const mode = ref<Mode>('pick')
 const slot = ref<MealSlot>('lunch')
 const slotPickerOpen = ref(false)
@@ -46,9 +46,12 @@ function defaultSlot(): MealSlot {
   return 'dinner'
 }
 
-/** Trim search input + ignore single-char queries — they explode the result list. */
+/** On the search-on-demand picker, the empty-query state shows nothing
+ *  (we don't dump the full list there). On the browse screen the same
+ *  empty query means "show everything". */
 const filteredDishes = computed(() => {
   const q = searchQuery.value.trim()
+  if (mode.value === 'browse') return dishStore.search(q)
   if (q.length === 0) return []
   return dishStore.search(q).slice(0, 30)
 })
@@ -208,16 +211,25 @@ watch(() => props.modelValue, (v) => { if (v) open() })
         />
       </div>
 
-      <!-- Empty state: hint + manual entry button. No long list dump. -->
-      <div v-if="searchQuery.trim().length === 0" class="py-8 text-center">
-        <p class="text-sm mb-1" style="color: var(--color-text-2)">Начните вводить название</p>
-        <p class="text-xs mb-5" style="color: var(--color-text-3)">или введите КБЖУ вручную</p>
+      <!-- Empty state when query is blank: no list dump, just two clear paths. -->
+      <div v-if="searchQuery.trim().length === 0" class="py-6 text-center flex flex-col items-center gap-3">
+        <p class="text-sm" style="color: var(--color-text-2)">Начните вводить название блюда</p>
+        <button
+          v-if="dishStore.items.length > 0"
+          type="button"
+          class="text-sm px-3 py-2 rounded-full transition-colors"
+          style="background: var(--color-surface-2); color: var(--color-text-2); border: 1px solid var(--color-border)"
+          @click="mode = 'browse'; searchQuery = ''"
+        >
+          Все блюда ({{ dishStore.items.length }}) →
+        </button>
+        <p class="text-xs" style="color: var(--color-text-3)">или</p>
         <AButton variant="secondary" size="md" @click="mode = 'adhoc'">
-          Ввести вручную
+          Ввести КБЖУ вручную
         </AButton>
       </div>
 
-      <!-- Filtered results -->
+      <!-- Inline filtered results while typing on the picker -->
       <div v-else class="flex flex-col gap-1.5 max-h-72 overflow-y-auto">
         <button
           v-for="dish in filteredDishes" :key="dish.uuid"
@@ -240,6 +252,58 @@ watch(() => props.modelValue, (v) => { if (v) open() })
 
         <p v-if="filteredDishes.length === 0" class="py-6 text-sm text-center" style="color: var(--color-text-3)">
           Ничего не найдено
+        </p>
+      </div>
+    </div>
+
+    <!-- ── Browse all dishes (drill-in) ── -->
+    <div v-else-if="mode === 'browse'">
+      <div class="flex items-center gap-2 mb-3">
+        <button
+          type="button"
+          class="text-sm px-2 py-1 -ml-1 rounded-[var(--radius-sm)]"
+          style="color: var(--color-text-2)"
+          @click="mode = 'pick'; searchQuery = ''"
+        >← Назад</button>
+        <p class="text-sm font-medium flex-1 text-center" style="color: var(--color-text)">
+          Все блюда ({{ dishStore.items.length }})
+        </p>
+        <span class="text-sm px-2 py-1 invisible">←</span>
+      </div>
+
+      <div class="relative mb-3">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base pointer-events-none" style="color: var(--color-text-3)">🔍</span>
+        <input
+          v-model="searchQuery"
+          type="search"
+          placeholder="Поиск..."
+          class="w-full rounded-[var(--radius-md)] px-3 py-2.5 pl-9 text-sm outline-none"
+          style="background: var(--color-surface-2); color: var(--color-text); border: 1px solid var(--color-border)"
+        />
+      </div>
+
+      <div class="flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto">
+        <button
+          v-for="dish in filteredDishes" :key="dish.uuid"
+          type="button"
+          class="flex items-center justify-between px-4 py-3 rounded-[var(--radius-md)] text-left transition-colors active:scale-[0.98]"
+          style="background: var(--color-surface-2); border: 1px solid var(--color-border)"
+          @click="selectDish(dish)"
+        >
+          <div class="min-w-0">
+            <p class="text-sm font-medium truncate" style="color: var(--color-text)">
+              {{ dish.name }}
+              <span v-if="dish.isPiece" class="text-xs font-normal" style="color: var(--color-text-3)">· {{ dish.pieceLabel || 'шт' }}</span>
+            </p>
+            <p class="text-xs mt-0.5" style="color: var(--color-text-3)">
+              {{ dish.kcalPer100g }} ккал · Б{{ dish.proteinPer100g }} Ж{{ dish.fatPer100g }} У{{ dish.carbsPer100g }} /100г
+            </p>
+          </div>
+          <span class="ml-3 text-lg flex-shrink-0" style="color: var(--color-text-3)">›</span>
+        </button>
+
+        <p v-if="filteredDishes.length === 0" class="py-6 text-sm text-center" style="color: var(--color-text-3)">
+          {{ searchQuery ? 'Ничего не найдено' : 'Список пуст' }}
         </p>
       </div>
     </div>
