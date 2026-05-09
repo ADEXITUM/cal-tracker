@@ -190,7 +190,7 @@ async function confirmRemoveAccount() {
       title="Удалить аккаунт?"
       :message="accountToRemove ? `Аккаунт «${accountToRemove.name}» (${accountToRemove.email}) будет удалён из списка сохранённых на этом устройстве.` : ''"
       confirm-label="Удалить"
-      @update:model-value="(v) => { if (!v) accountToRemove = null }"
+      @cancel="accountToRemove = null"
       @confirm="confirmRemoveAccount"
     />
 

@@ -44,19 +44,19 @@ function startEditMeal(m: Meal) {
 
 watch(showEditMeal, (v) => { if (!v) editingMeal.value = null })
 
-// AConfirm emits update:modelValue=false BEFORE confirm. Our @update:modelValue
-// nulls *toDelete, so by the time confirm fires the captured ref is gone and
-// nothing gets deleted. Read the value at click time, not in the handler.
+// Don't bind @update:modelValue to null these refs — AConfirm fires that
+// event synchronously *before* @confirm, so the handler would zero out the
+// ref and the captured value below would be null too.
 function confirmDeleteMeal() {
   const m = mealToDelete.value
-  if (m) void day.deleteMeal(m.uuid)
   mealToDelete.value = null
+  if (m) void day.deleteMeal(m.uuid)
 }
 
 function confirmDeleteWorkout() {
   const w = workoutToDelete.value
-  if (w) void day.deleteWorkout(w.uuid)
   workoutToDelete.value = null
+  if (w) void day.deleteWorkout(w.uuid)
 }
 
 const activeTab = ref<'goal' | 'balance'>('goal')
@@ -502,7 +502,7 @@ const sprintChip = computed(() => {
       title="Удалить приём пищи?"
       :message="mealToDelete ? `«${mealToDelete.name}» будет удалён.` : ''"
       confirm-label="Удалить"
-      @update:model-value="(v) => { if (!v) mealToDelete = null }"
+      @cancel="mealToDelete = null"
       @confirm="confirmDeleteMeal"
     />
 
@@ -511,7 +511,7 @@ const sprintChip = computed(() => {
       title="Удалить тренировку?"
       :message="workoutToDelete ? `«${workoutToDelete.name}» будет удалена.` : ''"
       confirm-label="Удалить"
-      @update:model-value="(v) => { if (!v) workoutToDelete = null }"
+      @cancel="workoutToDelete = null"
       @confirm="confirmDeleteWorkout"
     />
   </div>

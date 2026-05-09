@@ -145,7 +145,7 @@ function confirmDeleteDish() {
       title="Удалить блюдо?"
       :message="dishToDelete ? `«${dishToDelete.name}» будет удалено.` : ''"
       confirm-label="Удалить"
-      @update:model-value="(v) => { if (!v) dishToDelete = null }"
+      @cancel="dishToDelete = null"
       @confirm="confirmDeleteDish"
     />
 
