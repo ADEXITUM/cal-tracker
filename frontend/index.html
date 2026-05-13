@@ -14,20 +14,58 @@
     <meta name="mobile-web-app-capable" content="yes" />
 
     <title>Кал Трекер — трекер веса, КБЖУ и тренировок</title>
-    <meta name="description" content="Трекер веса, калорий, КБЖУ и тренировок. PWA, работает оффлайн." />
-    <meta name="robots" content="index, follow" />
+    <meta name="description" content="Личный трекер веса, калорий, КБЖУ и тренировок. Считает TDEE, ведёт дневник питания, показывает тренды веса и подсказки по дефициту/профициту. PWA — работает оффлайн, ставится на телефон." />
+    <meta name="keywords" content="трекер веса, трекер калорий, КБЖУ, дневник питания, TDEE, тренировки, дефицит калорий, PWA трекер" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="format-detection" content="telephone=no" />
     <link rel="canonical" href="https://xn----7sbqavde5bdp.xn--p1ai/" />
+    <link rel="manifest" href="/manifest.webmanifest" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Кал Трекер" />
     <meta property="og:title" content="Кал Трекер — трекер веса, КБЖУ и тренировок" />
-    <meta property="og:description" content="Трекер веса, калорий, КБЖУ и тренировок. PWA, работает оффлайн." />
+    <meta property="og:description" content="Личный трекер веса, калорий, КБЖУ и тренировок. Считает TDEE, ведёт дневник, подсказывает по дефициту/профициту. PWA, оффлайн." />
     <meta property="og:url" content="https://xn----7sbqavde5bdp.xn--p1ai/" />
     <meta property="og:locale" content="ru_RU" />
+    <meta property="og:image" content="https://xn----7sbqavde5bdp.xn--p1ai/icons/icon-512.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="Иконка Кал Трекера" />
 
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Кал Трекер — трекер веса, КБЖУ и тренировок" />
-    <meta name="twitter:description" content="Трекер веса, калорий, КБЖУ и тренировок. PWA, работает оффлайн." />
+    <meta name="twitter:description" content="Личный трекер веса, калорий, КБЖУ и тренировок. Считает TDEE, ведёт дневник, подсказывает по дефициту/профициту. PWA, оффлайн." />
+    <meta name="twitter:image" content="https://xn----7sbqavde5bdp.xn--p1ai/icons/icon-512.png" />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Кал Трекер",
+      "alternateName": "DietTracker",
+      "url": "https://xn----7sbqavde5bdp.xn--p1ai/",
+      "description": "Личный трекер веса, калорий, КБЖУ и тренировок. Считает TDEE, ведёт дневник питания, показывает тренды веса.",
+      "applicationCategory": "HealthApplication",
+      "applicationSubCategory": "Fitness",
+      "operatingSystem": "Web, Android, iOS",
+      "browserRequirements": "Requires JavaScript. Best on modern Chromium/Safari.",
+      "inLanguage": "ru-RU",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "RUB"
+      },
+      "featureList": [
+        "Учёт веса и состава тела",
+        "Дневник КБЖУ",
+        "Расчёт TDEE",
+        "Тренировки и шаги",
+        "Тренды и подсказки",
+        "Оффлайн-режим (PWA)"
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="app"></div>
