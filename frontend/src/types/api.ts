@@ -4,13 +4,22 @@ export type GoalType = 'cut' | 'maintenance' | 'bulk'
 export type ModeCode = 'on_target' | 'over' | 'far_over' | 'under' | 'far_under'
 export type MealSlot = 'breakfast' | 'lunch' | 'snack' | 'dinner' | 'other'
 
+export type UserRole = 'user' | 'admin'
+
 export interface User {
   uuid: string
   name: string
   email: string
   avatarColor: string
   timezone: string
+  role: UserRole
   hasProfile: boolean
+}
+
+export interface ChatSender {
+  uuid: string
+  name: string
+  avatarColor: string
 }
 
 export interface Profile {
@@ -143,4 +152,58 @@ export interface SavedAccount {
   avatarColor: string
   token: string
   lastUsedAt: number
+}
+
+export type ChatRole = 'user' | 'assistant'
+
+export type ProposalStatus = 'pending' | 'approved' | 'rejected' | 'error'
+
+export interface ChatIngredientBreakdown {
+  name: string
+  grams: number
+  kcal: number
+  proteinG: number
+  fatG: number
+  carbsG: number
+}
+
+export interface ChatProposal {
+  targetUser: { uuid: string; name: string }
+  label: string
+  eatenGrams: number
+  totalYieldGrams: number
+  kcal: number
+  proteinG: number
+  fatG: number
+  carbsG: number
+  slot: MealSlot
+  eatenAt: string
+  ingredientsBreakdown: ChatIngredientBreakdown[]
+  notes: string | null
+}
+
+export interface ChatTextBlock {
+  type: 'text'
+  text: string
+}
+
+export interface ChatToolUseBlock {
+  type: 'tool_use'
+  id: string
+  name: string
+  input: Record<string, unknown>
+  result?: ChatProposal
+  status?: ProposalStatus
+  mealUuid?: string
+  error?: string
+}
+
+export type ChatBlock = ChatTextBlock | ChatToolUseBlock
+
+export interface ChatMessage {
+  uuid: string
+  role: ChatRole
+  content: ChatBlock[]
+  createdAt: string
+  sender: ChatSender | null
 }

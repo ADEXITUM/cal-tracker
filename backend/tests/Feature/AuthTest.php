@@ -12,40 +12,75 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_user_can_register(): void
+    public function test_register_endpoint_is_disabled(): void
     {
-        $response = $this->postJson('/api/v1/auth/register', [
+        $this->postJson('/api/v1/auth/register', [
             'name'        => 'Test User',
             'email'       => 'test@example.com',
             'password'    => 'password123',
             'device_name' => 'test-device',
+        ])->assertStatus(405);
+
+        $this->assertDatabaseMissing('users', ['email' => 'test@example.com']);
+    }
+
+    public function test_users_create_command_creates_account(): void
+    {
+        $this->artisan('users:create', [
+            'email'      => 'kirill@example.com',
+            'name'       => 'Kirill',
+            '--password' => 'secret-pass',
+            '--timezone' => 'Europe/Moscow',
+        ])->assertSuccessful();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'kirill@example.com',
+            'name'  => 'Kirill',
+            'role'  => 'user',
         ]);
 
-        $response->assertStatus(201)
-            ->assertJsonStructure([
-                'data' => ['user' => ['uuid', 'email', 'name', 'has_profile'], 'token'],
-            ]);
-
-        $this->assertDatabaseHas('users', ['email' => 'test@example.com']);
+        $this->postJson('/api/v1/auth/login', [
+            'email'       => 'kirill@example.com',
+            'password'    => 'secret-pass',
+            'device_name' => 'iphone',
+        ])->assertOk();
     }
 
-    public function test_register_validates_required_fields(): void
+    public function test_users_create_admin_flag_grants_admin_role(): void
     {
-        $this->postJson('/api/v1/auth/register', [])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'email', 'password', 'device_name']);
+        $this->artisan('users:create', [
+            'email'      => 'admin@example.com',
+            'name'       => 'Admin',
+            '--password' => 'secret-pass',
+            '--admin'    => true,
+        ])->assertSuccessful();
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'admin@example.com',
+            'role'  => 'admin',
+        ]);
     }
 
-    public function test_register_rejects_duplicate_email(): void
+    public function test_users_create_command_rejects_short_password(): void
+    {
+        $this->artisan('users:create', [
+            'email'      => 'x@example.com',
+            'name'       => 'X',
+            '--password' => 'short',
+        ])->assertFailed();
+
+        $this->assertDatabaseMissing('users', ['email' => 'x@example.com']);
+    }
+
+    public function test_users_create_command_rejects_duplicate_email(): void
     {
         User::factory()->create(['email' => 'dup@example.com']);
 
-        $this->postJson('/api/v1/auth/register', [
-            'name'        => 'Another',
-            'email'       => 'dup@example.com',
-            'password'    => 'password123',
-            'device_name' => 'test',
-        ])->assertStatus(422);
+        $this->artisan('users:create', [
+            'email'      => 'dup@example.com',
+            'name'       => 'Dup',
+            '--password' => 'long-enough-pwd',
+        ])->assertFailed();
     }
 
     public function test_user_can_login(): void

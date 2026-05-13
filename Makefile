@@ -1,7 +1,12 @@
-.PHONY: up down restart logs shell-backend shell-db migrate seed test deploy backup dev dev-down dev-logs setup
+.PHONY: up down restart logs shell-backend shell-db migrate seed test deploy backup dev dev-down dev-logs setup admin wait-backend sync-db-password
 
-dev:
+dev: sync-db-password
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+	@$(MAKE) wait-backend
+	@docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend php artisan migrate --force
+	@echo ""
+	@echo "Dev up. Create admin users with:"
+	@echo "  make admin EMAIL=you@example.com NAME=you PASSWORD=yourpass"
 
 dev-down:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
@@ -9,8 +14,34 @@ dev-down:
 dev-logs:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
 
-up:
-	docker compose up -d
+up: sync-db-password
+	docker compose up -d --build
+	@$(MAKE) wait-backend
+	@docker compose exec -T backend php artisan migrate --force
+	@echo ""
+	@echo "Backend up. Create admin users with:"
+	@echo "  make admin EMAIL=you@example.com NAME=you PASSWORD=yourpass"
+
+# Mirrors secrets/db_password.txt → DB_PASSWORD in repo-root .env so that
+# docker compose's ${DB_PASSWORD} substitution gets a real value.
+# Without this, the backend container starts with an empty DB_PASSWORD and
+# Postgres rejects the connection (fe_sendauth: no password supplied).
+sync-db-password:
+	@if [ -f secrets/db_password.txt ]; then \
+	  DB_PWD=$$(tr -d '\n' < secrets/db_password.txt); \
+	  if grep -q '^DB_PASSWORD=' .env 2>/dev/null; then \
+	    sed -i.bak "s|^DB_PASSWORD=.*|DB_PASSWORD=$$DB_PWD|" .env && rm -f .env.bak; \
+	  else \
+	    echo "DB_PASSWORD=$$DB_PWD" >> .env; \
+	  fi; \
+	fi
+
+# Block until backend can run artisan — db healthcheck guarantees Postgres
+# is up but PHP-FPM/the artisan binary takes a few extra seconds.
+wait-backend:
+	@echo "Waiting for backend container..."
+	@until docker compose exec -T backend php artisan --version >/dev/null 2>&1; do sleep 1; done
+	@echo "Backend ready."
 
 down:
 	docker compose down
@@ -32,6 +63,20 @@ migrate:
 
 seed:
 	docker compose exec -T backend php artisan db:seed
+
+# Create an admin user able to use the AI chat:
+#   make admin EMAIL=kirill@example.com NAME=adexitum PASSWORD=secretpass
+# Optional: TIMEZONE=Europe/Moscow (default UTC).
+admin:
+	@if [ -z "$(EMAIL)" ] || [ -z "$(NAME)" ] || [ -z "$(PASSWORD)" ]; then \
+	  echo "Usage: make admin EMAIL=... NAME=... PASSWORD=... [TIMEZONE=...]"; \
+	  exit 1; \
+	fi
+	docker compose exec -T backend php artisan users:create \
+	  "$(EMAIL)" "$(NAME)" \
+	  --password="$(PASSWORD)" \
+	  --timezone="$(or $(TIMEZONE),UTC)" \
+	  --admin
 
 test:
 	cd backend && php artisan test

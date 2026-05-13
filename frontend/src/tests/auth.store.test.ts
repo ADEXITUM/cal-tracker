@@ -14,7 +14,6 @@ vi.mock('idb-keyval', () => ({
 vi.mock('@/api/auth', () => ({
   authApi: {
     login: vi.fn(),
-    register: vi.fn(),
     logout: vi.fn().mockResolvedValue(undefined),
     me: vi.fn(),
     updateMe: vi.fn(),
@@ -49,7 +48,7 @@ describe('auth store', () => {
   it('sets user and token on login', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       data: {
-        user: { uuid: 'u1', name: 'Test', email: 'test@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: false },
+        user: { uuid: 'u1', name: 'Test', email: 'test@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: false, role: 'user' },
         token: 'tok123',
       },
     })
@@ -66,7 +65,7 @@ describe('auth store', () => {
   it('clears user on logout', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       data: {
-        user: { uuid: 'u1', name: 'Test', email: 'test@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: false },
+        user: { uuid: 'u1', name: 'Test', email: 'test@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: false, role: 'user' },
         token: 'tok123',
       },
     })
@@ -83,7 +82,7 @@ describe('auth store', () => {
   it('saves multiple accounts', async () => {
     const makeUser = (uuid: string, email: string) => ({
       data: {
-        user: { uuid, name: 'U', email, avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true },
+        user: { uuid, name: 'U', email, avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true, role: 'user' as const },
         token: `tok-${uuid}`,
       },
     })
@@ -102,13 +101,13 @@ describe('auth store', () => {
   it('updateName syncs currentUser and saved account', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       data: {
-        user: { uuid: 'u1', name: 'Old', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true },
+        user: { uuid: 'u1', name: 'Old', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true, role: 'user' },
         token: 'tok',
       },
     })
     vi.mocked(authApi.updateMe).mockResolvedValue({
       data: {
-        user: { uuid: 'u1', name: 'New', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true },
+        user: { uuid: 'u1', name: 'New', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true, role: 'user' },
       },
     })
 
@@ -123,7 +122,7 @@ describe('auth store', () => {
   it('removes account', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       data: {
-        user: { uuid: 'u1', name: 'T', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true },
+        user: { uuid: 'u1', name: 'T', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true, role: 'user' },
         token: 'tok',
       },
     })

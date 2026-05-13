@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useDayStore } from '@/stores/day'
 import { daysApi } from '@/api/days'
 import { useSwipe } from '@/composables/useSwipe'
-import { MS_PER_DAY, previousDayIso } from '@/lib/time'
+import { MS_PER_DAY, previousDayIso, logicalDateIso } from '@/lib/time'
 import type { DayResource } from '@/types/api'
 import KcalRing from '@/components/charts/KcalRing.vue'
 import AModeBadge from '@/components/ui/AModeBadge.vue'
@@ -100,13 +100,13 @@ function deltaIcon(val: number): string {
   return '='
 }
 
-const dateParam = computed(() => (route.params.date as string) || new Date().toISOString().slice(0, 10))
+const dateParam = computed(() => (route.params.date as string) || logicalDateIso())
 
 const displayDate = computed(() => {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = logicalDateIso()
   const d = new Date(dateParam.value + 'T12:00:00')
   if (dateParam.value === today) return 'Сегодня'
-  if (dateParam.value === new Date(Date.now() - MS_PER_DAY).toISOString().slice(0, 10)) return 'Вчера'
+  if (dateParam.value === logicalDateIso(new Date(Date.now() - MS_PER_DAY))) return 'Вчера'
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
 })
 
@@ -196,7 +196,7 @@ const sprintChip = computed(() => {
   const goal = day.data?.goal
   if (!goal) return null
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = logicalDateIso()
   const isToday = dateParam.value === today
   const dayN = daysBetween(goal.startDate, dateParam.value) + 1
   const typeLabel = GOAL_TYPE_LABEL[goal.type]

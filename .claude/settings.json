@@ -1,7 +1,26 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e \"console.log\\(new URL\\('https://кал-трекер.рф'\\).href\\); console.log\\(new URL\\('https://кал-трекер.рф'\\).hostname\\)\")"
+      "Bash(node -e \"console.log\\(new URL\\('https://кал-трекер.рф'\\).href\\); console.log\\(new URL\\('https://кал-трекер.рф'\\).hostname\\)\")",
+      "Bash(php -l app/Console/Commands/CreateUserCommand.php)",
+      "Bash(php -l app/Http/Controllers/Api/V1/AuthController.php)",
+      "Bash(php -l routes/api.php)",
+      "Bash(php -l tests/Unit/ProposeMealToolTest.php)",
+      "Bash(php -l tests/Feature/ChatTest.php)",
+      "Bash(sed -i.bak \"s/hasProfile: false }/hasProfile: false, role: 'user' }/g; s/hasProfile: true }/hasProfile: true, role: 'user' }/g\" src/tests/auth.store.test.ts src/tests/day.store.test.ts src/tests/ProfileEditView.test.ts)",
+      "Bash(rm src/tests/*.bak)",
+      "WebFetch(domain:gen-api.ru)",
+      "WebFetch(domain:vsegpt.ru)",
+      "WebFetch(domain:proxyapi.ru)",
+      "WebFetch(domain:openrouter.ai)",
+      "WebFetch(domain:docs.aimlapi.com)",
+      "WebFetch(domain:aimlapi.com)",
+      "Bash(php -l app/Services/Anthropic/Client.php config/services.php tests/Feature/ChatTest.php)",
+      "Bash(php -l app/Services/Anthropic/Client.php)",
+      "Bash(php -l app/Support/LogicalDate.php app/Services/Chat/ContextBuilder.php app/Services/Chat/ProposalApplier.php)",
+      "Bash(php -l app/Services/Chat/Tools/ProposeMealTool.php)",
+      "Bash(php -l app/Services/Chat/ContextBuilder.php)",
+      "Bash(php -l app/Services/Chat/Tools/ProposeMealTool.php app/Services/Chat/ContextBuilder.php)"
     ]
   }
 }

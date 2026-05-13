@@ -20,7 +20,6 @@ vi.mock('@/api/profile', () => ({
 vi.mock('@/api/auth', () => ({
   authApi: {
     login: vi.fn(),
-    register: vi.fn(),
     logout: vi.fn(),
     me: vi.fn(),
     updateMe: vi.fn(),
@@ -73,7 +72,7 @@ describe('ProfileEditView', () => {
     const auth = useAuthStore()
     auth.currentUser = {
       uuid: 'u1', name: 'Old Name', email: 'x@x.com',
-      avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true,
+      avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true, role: 'user',
     }
   })
 
@@ -109,7 +108,7 @@ describe('ProfileEditView', () => {
     })
     vi.mocked(authApi.updateMe).mockResolvedValue({
       data: {
-        user: { uuid: 'u1', name: 'New Name', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true },
+        user: { uuid: 'u1', name: 'New Name', email: 'x@x.com', avatarColor: '#FF5A1F', timezone: 'UTC', hasProfile: true, role: 'user' },
       },
     })
 

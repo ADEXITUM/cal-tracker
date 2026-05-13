@@ -12,12 +12,6 @@ const router = createRouter({
       meta: { guest: true, hideNav: true },
     },
     {
-      path: '/register',
-      name: 'register',
-      component: () => import('@/views/RegisterView.vue'),
-      meta: { guest: true, hideNav: true },
-    },
-    {
       path: '/profile/setup',
       name: 'profile-setup',
       component: () => import('@/views/ProfileSetupView.vue'),
@@ -28,6 +22,12 @@ const router = createRouter({
       name: 'day',
       component: () => import('@/views/DayView.vue'),
       meta: { auth: true },
+    },
+    {
+      path: '/chat',
+      name: 'chat',
+      component: () => import('@/views/ChatView.vue'),
+      meta: { auth: true, admin: true },
     },
     {
       path: '/dishes',
@@ -98,6 +98,12 @@ router.beforeEach(async (to) => {
     !auth.currentUser.hasProfile
   ) {
     return { name: 'profile-setup' }
+  }
+
+  // Admin-only routes (currently the chat). Non-admins are bounced home
+  // — they shouldn't even know the route exists.
+  if (to.meta.admin && auth.currentUser?.role !== 'admin') {
+    return { name: 'day' }
   }
 })
 

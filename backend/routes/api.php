@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\DayController;
 use App\Http\Controllers\Api\V1\DishController;
 use App\Http\Controllers\Api\V1\GoalController;
@@ -16,9 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
 
     Route::prefix('auth')->group(function () {
-        $authThrottle = app()->isLocal() ? 'throttle:1000,1' : 'throttle:5,60';
         $loginThrottle = app()->isLocal() ? 'throttle:1000,1' : 'throttle:10,1';
-        Route::post('register', [AuthController::class, 'register'])->middleware($authThrottle);
         Route::post('login', [AuthController::class, 'login'])->middleware($loginThrottle);
 
         Route::middleware('auth:sanctum')->group(function () {
@@ -65,5 +64,12 @@ Route::prefix('v1')->group(function () {
         // Stats
         Route::get('stats/summary', [StatsController::class, 'summary']);
         Route::get('stats/series', [StatsController::class, 'series']);
+
+        // Chat — admin role only. Non-admins do not see this in their UI either.
+        Route::middleware('admin')->group(function () {
+            Route::get('chat/messages', [ChatController::class, 'index']);
+            Route::post('chat/messages', [ChatController::class, 'store']);
+            Route::post('chat/messages/{uuid}/apply', [ChatController::class, 'apply']);
+        });
     });
 });

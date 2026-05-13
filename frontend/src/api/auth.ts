@@ -14,9 +14,6 @@ interface UpdateMeResponse {
 }
 
 export const authApi = {
-  register: (payload: { name: string; email: string; password: string; deviceName: string }) =>
-    api.post<AuthResponse>('/auth/register', payload),
-
   login: (payload: { email: string; password: string; deviceName: string }) =>
     api.post<AuthResponse>('/auth/login', payload),
 

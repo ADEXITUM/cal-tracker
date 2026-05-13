@@ -25,6 +25,13 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    # Explicit DNS — Docker's default resolver can flake when the host
+    # DNS misbehaves, which makes the backend's outbound HTTP calls fail
+    # (cURL error 6: could not resolve host). Cloudflare 1.1.1.1 + Google
+    # 8.8.8.8 are reliable fallbacks.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       APP_NAME: DietTracker
       APP_ENV: production
@@ -40,6 +47,11 @@ services:
       CACHE_DRIVER: file
       SESSION_DRIVER: file
       QUEUE_CONNECTION: sync
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_API_BASE: ${ANTHROPIC_API_BASE:-https://api.anthropic.com}
+      ANTHROPIC_AUTH_STYLE: ${ANTHROPIC_AUTH_STYLE:-anthropic}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      ANTHROPIC_MAX_TOKENS: ${ANTHROPIC_MAX_TOKENS:-2048}
     secrets:
       - db_password
     networks:

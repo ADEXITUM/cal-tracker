@@ -16,14 +16,16 @@ import type { SavedAccount, User } from '@/types/api'
  * (circular).
  */
 async function resetUserStores(): Promise<void> {
-  const [{ useDayStore }, { useDishesStore }, { useGoalsStore }] = await Promise.all([
+  const [{ useDayStore }, { useDishesStore }, { useGoalsStore }, { useChatStore }] = await Promise.all([
     import('@/stores/day'),
     import('@/stores/dishes'),
     import('@/stores/goals'),
+    import('@/stores/chat'),
   ])
   useDayStore().reset()
   useDishesStore().reset()
   useGoalsStore().reset()
+  useChatStore().reset()
 }
 
 const LS_ACCOUNTS_KEY = 'dt_saved_accounts'
@@ -86,11 +88,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(email: string, password: string, deviceName: string): Promise<void> {
     const res = await authApi.login({ email, password, deviceName })
-    await _setSession(res.data.user, res.data.token)
-  }
-
-  async function register(name: string, email: string, password: string, deviceName: string): Promise<void> {
-    const res = await authApi.register({ name, email, password, deviceName })
     await _setSession(res.data.user, res.data.token)
   }
 
@@ -217,7 +214,6 @@ export const useAuthStore = defineStore('auth', () => {
     switching,
     restoreFromIdb,
     login,
-    register,
     logout,
     switchTo,
     removeAccount,

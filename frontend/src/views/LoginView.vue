@@ -69,11 +69,6 @@ async function submit() {
           Войти
         </AButton>
       </form>
-
-      <p class="mt-6 text-center text-sm" style="color: var(--color-text-2)">
-        Нет аккаунта?
-        <RouterLink to="/register" style="color: var(--color-accent)">Зарегистрироваться</RouterLink>
-      </p>
     </div>
   </div>
 </template>

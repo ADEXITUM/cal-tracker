@@ -18,6 +18,7 @@ class UserResource extends JsonResource
             'email'        => $this->email,
             'avatar_color' => $this->avatar_color,
             'timezone'     => $this->timezone,
+            'role'         => $this->role,
             'has_profile'  => $this->profile !== null,
         ];
     }

@@ -4,6 +4,7 @@ import { daysApi } from '@/api/days'
 import { NetworkError } from '@/api/client'
 import { enqueue as enqueueOffline } from '@/composables/useOfflineQueue'
 import { readCachedDay, writeCachedDay } from '@/lib/dayCache'
+import { logicalDateIso } from '@/lib/time'
 import { useAuthStore } from '@/stores/auth'
 import { useDishesStore } from '@/stores/dishes'
 import { classifyMode } from '@/lib/modes'
@@ -33,7 +34,11 @@ export const useDayStore = defineStore('day', () => {
   function bumpVersion() { dataVersion.value++ }
 
   function todayString() {
-    return new Date().toISOString().slice(0, 10)
+    // Логический день с ночным гэпом до 03:00 — match-ит backend
+    // App\Support\LogicalDate. Раньше использовалась UTC-дата которая
+    // случайно давала похожий результат для UTC+3, но ломалась для
+    // других таймзон.
+    return logicalDateIso()
   }
 
   async function setDate(date: string) {

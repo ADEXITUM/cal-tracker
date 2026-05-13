@@ -25,7 +25,6 @@ vi.mock('@/api/auth', () => ({
   authApi: {
     me: vi.fn(),
     login: vi.fn(),
-    register: vi.fn(),
     logout: vi.fn(),
     updateMe: vi.fn(),
   },
