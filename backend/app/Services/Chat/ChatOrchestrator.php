@@ -182,12 +182,21 @@ class ChatOrchestrator
             }
 
             // assistant: split into [assistant tool_use+text] then [user tool_result]
+            //
+            // Пропускаем tool_use со status='error' (модель сама сгенерила
+            // невалидный call — нет target_user_uuid и т.п.). Anthropic/OpenRouter
+            // иногда возвращает 403 forbidden ("Request not allowed") когда в
+            // истории есть tool_use с неполным input. И семантически такие
+            // блоки бесполезны — это шум, без него модель чище работает.
             $assistantBlocks = [];
             $toolResultBlocks = [];
             foreach ($row->content as $block) {
                 if (($block['type'] ?? '') === 'text') {
                     $assistantBlocks[] = ['type' => 'text', 'text' => (string) $block['text']];
                 } elseif (($block['type'] ?? '') === 'tool_use') {
+                    if (($block['status'] ?? '') === 'error') {
+                        continue;
+                    }
                     $assistantBlocks[] = [
                         'type'  => 'tool_use',
                         'id'    => $block['id'],
