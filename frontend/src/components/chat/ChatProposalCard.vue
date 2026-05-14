@@ -28,7 +28,19 @@ const whenLabel = computed(() =>
 </script>
 
 <template>
+  <!-- Error proposals: AI завалила tool call (галлюцинация, потерянное поле и т.п.).
+       Не показываем "???"-плашку и техническое сообщение — оно бесполезно юзеру.
+       Просто короткая нейтральная строка вместо целой карточки. -->
   <div
+    v-if="block.status === 'error'"
+    class="px-3 py-2 rounded-[var(--radius-sm)] text-[12px]"
+    style="background: var(--color-surface-2); color: var(--color-text-3); border: 1px dashed var(--color-border)"
+  >
+    AI не смогла оформить одно из предложений (попроси повторить).
+  </div>
+
+  <div
+    v-else
     class="rounded-[var(--radius-md)] overflow-hidden"
     :style="{
       background: 'var(--color-surface)',
@@ -58,13 +70,6 @@ const whenLabel = computed(() =>
           style="color: var(--color-text-3)"
         >
           Отменено
-        </span>
-        <span
-          v-else-if="block.status === 'error'"
-          class="text-[11px] font-medium"
-          style="color: var(--color-red)"
-        >
-          Ошибка
         </span>
       </div>
     </div>
