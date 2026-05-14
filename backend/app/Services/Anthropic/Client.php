@@ -58,16 +58,31 @@ class Client
             $headers['anthropic-version'] = $this->apiVersion;
         }
 
+        $body = [
+            'model'      => $this->model,
+            'max_tokens' => $this->maxTokens,
+            'system'     => $system,
+            'tools'      => $tools,
+            'messages'   => $messages,
+        ];
+
+        // OpenRouter маршрутизирует запросы Anthropic-моделей через нескольких
+        // апстримов (Anthropic direct, Bedrock, Vertex). Часть из них для нашего
+        // аккаунта периодически возвращает "Access to Anthropic models is..." —
+        // прибиваем routing к самому Anthropic, без fallback'ов. Параметр
+        // игнорируется при прямом обращении к api.anthropic.com, но мы посылаем
+        // его только для bearer-стиля (=OpenRouter), чтобы не было лишнего шума.
+        if ($this->authStyle === self::AUTH_BEARER) {
+            $body['provider'] = [
+                'order'           => ['anthropic'],
+                'allow_fallbacks' => false,
+            ];
+        }
+
         $response = Http::withHeaders($headers)
             ->timeout(60)
             ->retry(3, 800, fn ($exception, $request) => $this->isRetryable($exception))
-            ->post($this->apiBase . '/v1/messages', [
-                'model'      => $this->model,
-                'max_tokens' => $this->maxTokens,
-                'system'     => $system,
-                'tools'      => $tools,
-                'messages'   => $messages,
-            ]);
+            ->post($this->apiBase . '/v1/messages', $body);
 
         if ($response->failed()) {
             throw new RuntimeException(

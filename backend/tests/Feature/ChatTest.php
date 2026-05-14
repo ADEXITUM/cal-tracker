@@ -134,8 +134,34 @@ class ChatTest extends TestCase
             $req->hasHeader('authorization', 'Bearer test-key')
             && !$req->hasHeader('x-api-key')
             && str_starts_with($req->url(), 'https://openrouter.ai/api/v1/messages')
-            && ($req->data()['model'] ?? null) === 'anthropic/claude-sonnet-4.6',
+            && ($req->data()['model'] ?? null) === 'anthropic/claude-sonnet-4.6'
+            // Прибиваем провайдера к anthropic — иначе OpenRouter роутит на
+            // Bedrock/Vertex, которые периодически отдают "Access to Anthropic
+            // models is restricted" для нашего аккаунта.
+            && ($req->data()['provider']['order'] ?? null) === ['anthropic']
+            && ($req->data()['provider']['allow_fallbacks'] ?? null) === false,
         );
+    }
+
+    public function test_direct_anthropic_does_not_send_provider_routing(): void
+    {
+        // Параметр provider — это OpenRouter-специфика; api.anthropic.com на
+        // лишний ключ в body не падает, но засорять запрос не нужно.
+        $user = $this->admin();
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response([
+                'content'     => [['type' => 'text', 'text' => 'ok']],
+                'stop_reason' => 'end_turn',
+                'usage'       => ['input_tokens' => 1, 'output_tokens' => 1],
+            ], 200),
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/chat/messages', ['text' => 'hi'])
+            ->assertCreated();
+
+        Http::assertSent(fn ($req) => !array_key_exists('provider', $req->data()));
     }
 
     public function test_returns_503_with_friendly_message_when_upstream_fails(): void
