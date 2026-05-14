@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Anthropic;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class Client
@@ -85,6 +86,13 @@ class Client
             ->post($this->apiBase . '/v1/messages', $body);
 
         if ($response->failed()) {
+            // Полное тело ошибки идёт отдельной записью — иначе ExceptionFormatter
+            // обрезает на ~256 символов, и в логе видно только "Provider returned
+            // error... (truncated)" без сути проблемы (тип ошибки, какой апстрим).
+            Log::error('Anthropic upstream raw error', [
+                'status' => $response->status(),
+                'body'   => $response->body(),
+            ]);
             throw new RuntimeException(
                 "Anthropic API error {$response->status()}: " . $response->body(),
             );
