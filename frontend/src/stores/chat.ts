@@ -35,8 +35,13 @@ export const useChatStore = defineStore('chat', () => {
 
     // Optimistic push: user sees their own bubble immediately while the
     // model still chews on the request. On success we swap the temp row
-    // with the server-issued one (real uuid + canonical timestamp);
-    // on failure we drop the temp row and surface the error.
+    // with the server-issued one (real uuid + canonical timestamp).
+    //
+    // On failure we KEEP the temp row in place: the backend persists the
+    // user message before calling the LLM, so even on 500 the message is
+    // safely in the DB and will reappear on reload. Removing it from the
+    // UI made it look as if the message vanished after an error, which
+    // confused users — they retyped, then saw a duplicate after refresh.
     const auth = useAuthStore()
     const tempUuid = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const tempMsg: ChatMessage = {
@@ -66,8 +71,6 @@ export const useChatStore = defineStore('chat', () => {
       }
       messages.value.push(res.data.assistant)
     } catch (e) {
-      const idx = messages.value.findIndex((m) => m.uuid === tempUuid)
-      if (idx >= 0) messages.value.splice(idx, 1)
       error.value = (e as Error).message ?? 'Не удалось отправить сообщение'
       throw e
     } finally {

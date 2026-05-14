@@ -86,6 +86,34 @@ export interface Dish {
   pieceLabel: string | null
 }
 
+export interface FoodSearchHit {
+  foodId: string
+  name: string
+  brand: string | null
+  description: string | null
+}
+
+export interface FoodServing {
+  servingId: string
+  description: string
+  /** Точный объём в исходной метрической единице (g/ml), если FatSecret сообщает её. */
+  metricAmount: number | null
+  metricUnit: string | null
+  /** Граммовый эквивалент порции, если FatSecret вернул metric_unit ∈ {g, ml}. */
+  grams: number | null
+  kcal: number
+  proteinG: number
+  fatG: number
+  carbsG: number
+}
+
+export interface FoodDetail {
+  foodId: string
+  name: string
+  brand: string | null
+  servings: FoodServing[]
+}
+
 export interface Totals {
   kcal: number
   proteinG: number

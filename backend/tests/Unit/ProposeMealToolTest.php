@@ -159,6 +159,31 @@ class ProposeMealToolTest extends TestCase
         ]);
     }
 
+    public function test_rejects_empty_target_user_uuid(): void
+    {
+        // Раньше пустая строка проходила в Postgres-запрос и падала SQLSTATE 22P02
+        // (invalid input for uuid). Теперь даём осмысленное сообщение, чтобы LLM
+        // могла переспросить пользователя.
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('target_user_uuid is required');
+        $this->tool()->execute([
+            'target_user_uuid' => '',
+            'label'            => 'X',
+            'ingredients'      => [['name' => 'X', 'grams' => 100, 'kcal_per_100g' => 100, 'protein_per_100g' => 0, 'fat_per_100g' => 0, 'carbs_per_100g' => 0]],
+        ]);
+    }
+
+    public function test_rejects_malformed_target_user_uuid(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('not a valid UUID');
+        $this->tool()->execute([
+            'target_user_uuid' => 'not-a-uuid',
+            'label'            => 'X',
+            'ingredients'      => [['name' => 'X', 'grams' => 100, 'kcal_per_100g' => 100, 'protein_per_100g' => 0, 'fat_per_100g' => 0, 'carbs_per_100g' => 0]],
+        ]);
+    }
+
     public function test_rejects_empty_ingredients(): void
     {
         $user = User::factory()->create();

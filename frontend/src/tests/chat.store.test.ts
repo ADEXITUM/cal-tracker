@@ -71,6 +71,18 @@ describe('chat store', () => {
     expect(chatApi.send).not.toHaveBeenCalled()
   })
 
+  it('send() keeps the optimistic user bubble on error', async () => {
+    // Бэкенд сохраняет user-сообщение ДО вызова LLM, так что при 500 оно
+    // уже в базе. Если удалять temp с фронта — после reload юзер увидит
+    // "пропавшее" сообщение снова, что выглядит как баг.
+    vi.mocked(chatApi.send).mockRejectedValue(new Error('boom'))
+    const chat = useChatStore()
+    await expect(chat.send('hello')).rejects.toThrow('boom')
+    expect(chat.messages).toHaveLength(1)
+    expect(chat.messages[0]?.content).toEqual([{ type: 'text', text: 'hello' }])
+    expect(chat.error).toBe('boom')
+  })
+
   it('apply() replaces message by uuid', async () => {
     const original = sample({
       uuid: 'a',

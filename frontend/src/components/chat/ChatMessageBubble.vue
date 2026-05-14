@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ChatMessage, ChatTextBlock, ChatToolUseBlock } from '@/types/api'
+import { renderInlineMarkdown } from '@/lib/markdown'
 import ChatProposalCard from './ChatProposalCard.vue'
 
 const props = defineProps<{
@@ -63,7 +64,7 @@ function formatTime(iso: string): string {
     <div
       v-for="(block, i) in textBlocks"
       :key="`t-${i}`"
-      class="max-w-[85%] rounded-[var(--radius-md)] px-3 py-2 text-[14px] leading-snug whitespace-pre-wrap"
+      class="chat-md max-w-[85%] rounded-[var(--radius-md)] px-3 py-2 text-[14px] leading-snug whitespace-pre-wrap"
       :style="
         isMine
           ? 'background: var(--color-accent); color: white;'
@@ -71,7 +72,8 @@ function formatTime(iso: string): string {
             ? `background: var(--color-surface); color: var(--color-text); border-left: 3px solid ${senderColor};`
             : 'background: var(--color-surface-2); color: var(--color-text);'
       "
-    >{{ block.text }}</div>
+      v-html="renderInlineMarkdown(block.text)"
+    ></div>
 
     <!-- Tool blocks (proposals) — only on assistant messages -->
     <template v-if="!isUser && toolBlocks.length > 0">
@@ -99,3 +101,16 @@ function formatTime(iso: string): string {
     </template>
   </div>
 </template>
+
+<style scoped>
+.chat-md :deep(code) {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.92em;
+  padding: 0 0.25em;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.chat-md :deep(strong) {
+  font-weight: 600;
+}
+</style>

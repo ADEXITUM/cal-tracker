@@ -35,6 +35,17 @@ return [
         ],
     ],
 
+    'fatsecret' => [
+        // OAuth 2.0 client_credentials (https://platform.fatsecret.com/docs/guides).
+        // Free tier требует whitelisting IP сервера в кабинете FatSecret — без него
+        // токен получается, но /rest/server.api отдаёт error code 21.
+        'client_id'     => env('FATSECRET_CLIENT_ID'),
+        'client_secret' => env('FATSECRET_CLIENT_SECRET'),
+        'token_url'     => rtrim((string) env('FATSECRET_TOKEN_URL', 'https://oauth.fatsecret.com/connect/token'), '/'),
+        'api_base'      => rtrim((string) env('FATSECRET_API_BASE', 'https://platform.fatsecret.com/rest/server.api'), '/'),
+        'scope'         => env('FATSECRET_SCOPE', 'basic'),
+    ],
+
     'anthropic' => [
         // Direct Anthropic uses x-api-key. OpenRouter (and similar
         // passthrough proxies that mirror the Messages API) uses Bearer

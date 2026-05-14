@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\DayController;
 use App\Http\Controllers\Api\V1\DishController;
+use App\Http\Controllers\Api\V1\FoodController;
 use App\Http\Controllers\Api\V1\GoalController;
 use App\Http\Controllers\Api\V1\MealController;
 use App\Http\Controllers\Api\V1\MeasurementController;
@@ -60,6 +61,10 @@ Route::prefix('v1')->group(function () {
         Route::post('dishes', [DishController::class, 'store']);
         Route::put('dishes/{uuid}', [DishController::class, 'update']);
         Route::delete('dishes/{uuid}', [DishController::class, 'destroy']);
+
+        // Foods — proxy over FatSecret Platform API.
+        Route::get('foods/search', [FoodController::class, 'search']);
+        Route::get('foods/{foodId}', [FoodController::class, 'show'])->where('foodId', '\d+');
 
         // Stats
         Route::get('stats/summary', [StatsController::class, 'summary']);

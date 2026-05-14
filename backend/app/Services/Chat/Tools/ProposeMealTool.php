@@ -93,9 +93,20 @@ class ProposeMealTool
      */
     public function execute(array $input): array
     {
-        $targetUser = User::where('uuid', $input['target_user_uuid'] ?? '')->first();
+        // Без явной валидации пустая строка дойдёт до Postgres и упадёт как
+        // SQLSTATE 22P02 (invalid input for uuid). Эта ошибка прилетит к
+        // LLM как tool_result is_error, и модель теряется. Лучше дать
+        // понятное сообщение, чтобы AI смогла переспросить.
+        $rawUuid = trim((string) ($input['target_user_uuid'] ?? ''));
+        if ($rawUuid === '') {
+            throw new InvalidArgumentException('target_user_uuid is required (specify which user gets the meal)');
+        }
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $rawUuid)) {
+            throw new InvalidArgumentException("target_user_uuid is not a valid UUID: {$rawUuid}");
+        }
+        $targetUser = User::where('uuid', $rawUuid)->first();
         if (!$targetUser) {
-            throw new InvalidArgumentException("Unknown target_user_uuid: " . ($input['target_user_uuid'] ?? 'null'));
+            throw new InvalidArgumentException("Unknown target_user_uuid: {$rawUuid}");
         }
 
         $label = trim((string) ($input['label'] ?? ''));
