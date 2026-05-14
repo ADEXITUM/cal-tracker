@@ -84,9 +84,14 @@ class Client
         // Chrome успел дождаться ответа, не порвав соединение (default network
         // timeout ~60-120s на сотовой сети). Иначе backend продолжает считать,
         // а юзер уже видит "failed to fetch" и шлёт повторно.
+        //
+        // throw: false — иначе retry() сам выбрасывает RequestException на
+        // последней неудачной попытке ДО того как мы успеваем залогать полный
+        // body. С throw:false мы получаем Response с failed()=true и сами
+        // решаем что делать (включая Log::error с raw body для диагностики).
         $response = Http::withHeaders($headers)
             ->timeout(45)
-            ->retry(2, 1000, fn ($exception, $request) => $this->isRetryable($exception))
+            ->retry(2, 1000, fn ($exception, $request) => $this->isRetryable($exception), throw: false)
             ->post($this->apiBase . '/v1/messages', $body);
 
         if ($response->failed()) {
