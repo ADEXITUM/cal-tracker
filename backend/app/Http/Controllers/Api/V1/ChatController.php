@@ -13,6 +13,8 @@ use App\Services\Chat\ChatOrchestrator;
 use App\Services\Chat\ProposalApplier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ChatController extends Controller
 {
@@ -34,10 +36,24 @@ class ChatController extends Controller
 
     public function store(SendChatMessageRequest $request, ChatOrchestrator $orchestrator): JsonResponse
     {
-        [$userMsg, $assistantMsg] = $orchestrator->turn(
-            $request->user(),
-            (string) $request->validated()['text'],
-        );
+        try {
+            [$userMsg, $assistantMsg] = $orchestrator->turn(
+                $request->user(),
+                (string) $request->validated()['text'],
+            );
+        } catch (Throwable $e) {
+            // LLM-провайдер недоступен (Anthropic/OpenRouter 4xx/5xx, таймаут и т.п.).
+            // Сообщение пользователя уже сохранено в БД до вызова Anthropic — так что
+            // оно не теряется. Возвращаем 503 с понятным текстом, чтобы фронт показал
+            // юзеру, что произошло, и не было голого "Server Error" 500.
+            Log::warning('Chat upstream failed', [
+                'user_id' => $request->user()?->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return response()->json([
+                'message' => 'AI временно недоступен. Сообщение сохранено — попробуй ещё раз через минуту.',
+            ], 503);
+        }
 
         return response()->json([
             'data' => [

@@ -18,10 +18,15 @@ class ChatTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.anthropic.api_key' => 'test-key']);
-        config(['services.anthropic.model' => 'claude-sonnet-4-6']);
+        // Пинним полный конфиг, чтобы тесты не зависели от локального .env.
+        // Без api_base/auth_style тесты на машинах разработчиков с OpenRouter
+        // настройкой били реальный openrouter.ai и падали с 401.
+        config(['services.anthropic.api_key'    => 'test-key']);
+        config(['services.anthropic.api_base'   => 'https://api.anthropic.com']);
+        config(['services.anthropic.auth_style' => 'anthropic']);
+        config(['services.anthropic.model'      => 'claude-sonnet-4-6']);
         config(['services.anthropic.max_tokens' => 2048]);
-        config(['services.anthropic.version' => '2023-06-01']);
+        config(['services.anthropic.version'    => '2023-06-01']);
     }
 
     private function admin(array $overrides = []): User
@@ -133,6 +138,28 @@ class ChatTest extends TestCase
         );
     }
 
+    public function test_returns_503_with_friendly_message_when_upstream_fails(): void
+    {
+        // OpenRouter/Anthropic иногда возвращает 4xx ("Access to Anthropic models...",
+        // rate limit, временная блокировка) — это не баг приложения, и юзеру
+        // не нужно видеть голый 500. Сообщение пользователя при этом уже сохранено
+        // в БД до вызова LLM, поэтому 503 + текст «попробуй позже» — корректный UX.
+        $user = $this->admin();
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response(['error' => ['message' => 'overloaded']], 503),
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/chat/messages', ['text' => 'hi'])
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'AI временно недоступен. Сообщение сохранено — попробуй ещё раз через минуту.');
+
+        // User message всё равно сохранён в БД.
+        $this->assertDatabaseCount('chat_messages', 1);
+        $this->assertDatabaseHas('chat_messages', ['role' => 'user', 'sender_user_id' => $user->id]);
+    }
+
     public function test_assistant_tool_use_persists_pending_proposal(): void
     {
         $user = $this->admin(['name' => 'Kirill', 'timezone' => 'UTC']);
@@ -170,7 +197,7 @@ class ChatTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.assistant.content.0.type', 'tool_use')
             ->assertJsonPath('data.assistant.content.0.status', 'pending')
-            ->assertJsonPath('data.assistant.content.0.result.kcal', 330.0)
+            ->assertJsonPath('data.assistant.content.0.result.kcal', 330)
             ->assertJsonPath('data.assistant.content.1.type', 'text');
     }
 
