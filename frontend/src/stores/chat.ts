@@ -71,7 +71,13 @@ export const useChatStore = defineStore('chat', () => {
       }
       messages.value.push(res.data.assistant)
     } catch (e) {
-      error.value = (e as Error).message ?? 'Не удалось отправить сообщение'
+      // "Failed to fetch" — это network error браузера (мобильник засыпал,
+      // proxy оборвал, и т.п.). Бэкенд при этом мог запрос обработать; user
+      // message в БД точно есть. Даём понятный текст вместо сырого fetch error.
+      const raw = (e as Error).message ?? ''
+      error.value = raw.toLowerCase().includes('failed to fetch') || raw === 'Network unavailable'
+        ? 'Связь оборвалась. Сообщение могло сохраниться — обнови чат через минуту.'
+        : raw || 'Не удалось отправить сообщение'
       throw e
     } finally {
       sending.value = false

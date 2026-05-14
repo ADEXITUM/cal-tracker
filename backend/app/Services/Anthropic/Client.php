@@ -80,9 +80,13 @@ class Client
             ];
         }
 
+        // Окно полного запроса ограничено ~90s (45 * 2 попытки), чтобы мобильный
+        // Chrome успел дождаться ответа, не порвав соединение (default network
+        // timeout ~60-120s на сотовой сети). Иначе backend продолжает считать,
+        // а юзер уже видит "failed to fetch" и шлёт повторно.
         $response = Http::withHeaders($headers)
-            ->timeout(60)
-            ->retry(3, 800, fn ($exception, $request) => $this->isRetryable($exception))
+            ->timeout(45)
+            ->retry(2, 1000, fn ($exception, $request) => $this->isRetryable($exception))
             ->post($this->apiBase . '/v1/messages', $body);
 
         if ($response->failed()) {
